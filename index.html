@@ -1,0 +1,1758 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portfolio Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0c0f;
+  --surface: #111419;
+  --surface2: #181c23;
+  --surface3: #1e2430;
+  --border: #1e2430;
+  --accent: #00e5a0;
+  --accent3: #4a9eff;
+  --red: #ff4757;
+  --text: #e8ecf4;
+  --muted: #6b7a8d;
+  --positive: #00e5a0;
+  --negative: #ff4757;
+  --font-num: 'Bebas Neue', cursive;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,229,160,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,160,0.025) 1px, transparent 1px);
+  background-size: 44px 44px;
+  pointer-events: none;
+  z-index: 0;
+}
+.container { position: relative; z-index: 1; max-width: 1700px; margin: 0 auto; padding: 24px; }
+
+header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 28px; border-bottom: 1px solid var(--border); padding-bottom: 22px;
+}
+.header-left h1 { font-family: 'Syne', sans-serif; font-size: 2.1rem; font-weight: 800; letter-spacing: -0.02em; }
+.header-left h1 span { color: var(--accent); }
+.header-left p { color: var(--muted); font-size: 0.75rem; margin-top: 4px; letter-spacing: 0.12em; text-transform: uppercase; }
+.header-right { text-align: right; }
+.total-value { font-family: var(--font-num); font-size: 3rem; color: var(--text); letter-spacing: 0.04em; line-height: 1; }
+.total-gain { font-family: var(--font-num); font-size: 1.2rem; color: var(--positive); margin-top: 4px; letter-spacing: 0.06em; }
+.date-badge { font-size: 0.7rem; color: var(--muted); margin-top: 4px; letter-spacing: 0.08em; }
+
+.filter-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 22px; flex-wrap: wrap; }
+.filter-label { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-right: 4px; }
+.filter-btn {
+  padding: 7px 18px; border-radius: 6px; cursor: pointer;
+  font-size: 0.75rem; font-family: 'Syne', sans-serif; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; transition: all 0.18s;
+  border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+}
+.filter-btn.active-rf  { background: rgba(0,229,160,0.15); color: var(--accent);  border-color: var(--accent); }
+.filter-btn.active-rv  { background: rgba(74,158,255,0.15); color: var(--accent3); border-color: var(--accent3); }
+.filter-btn.active-all { background: rgba(255,255,255,0.08); color: var(--text); border-color: var(--text); }
+.filter-divider { width: 1px; height: 28px; background: var(--border); margin: 0 6px; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 26px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 4px; width: fit-content; }
+.tab { padding: 8px 22px; border-radius: 7px; cursor: pointer; font-size: 0.75rem; font-family: 'Syne', sans-serif; font-weight: 600; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; transition: all 0.2s; border: none; background: transparent; }
+.tab.active { background: var(--accent); color: #000; }
+.tab:hover:not(.active) { color: var(--text); background: var(--surface2); }
+.panel { display: none; }
+.panel.active { display: block; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 22px; }
+.kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; position: relative; overflow: hidden; }
+.kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
+.kpi-card.green::before { background: var(--accent); }
+.kpi-card.blue::before  { background: var(--accent3); }
+.kpi-card.red::before   { background: var(--red); }
+.kpi-card.yellow::before{ background: #f5c518; }
+.kpi-label { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+.kpi-value { font-family: var(--font-num); font-size: 1.9rem; letter-spacing: 0.04em; line-height: 1; }
+.kpi-sub   { font-size: 0.7rem; color: var(--muted); margin-top: 6px; }
+.kpi-sub.pos { color: var(--positive); }
+.kpi-sub.neg { color: var(--negative); }
+
+.chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+.card-title  { font-family: 'Syne', sans-serif; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.card-badge  { font-size: 0.65rem; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 3px 8px; letter-spacing: 0.06em; }
+
+.tf-selector { display: flex; gap: 4px; }
+.tf-btn { padding: 5px 12px; border-radius: 5px; cursor: pointer; font-size: 0.68rem; font-family: 'Syne', sans-serif; font-weight: 700; letter-spacing: 0.06em; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); transition: all 0.15s; }
+.tf-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+.grid-12 { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; margin-bottom: 18px; }
+.grid-2  { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+.grid-3  { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+.grid-21 { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; }
+@media(max-width:900px){ .grid-12,.grid-2,.grid-3,.grid-21 { grid-template-columns:1fr; } }
+
+.mb18 { margin-bottom: 18px; }
+.section-sep { height: 1px; background: var(--border); margin: 22px 0; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
+thead th { text-align:left; padding:8px 10px; font-size:0.65rem; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; border-bottom:1px solid var(--border); white-space:nowrap; }
+tbody tr { border-bottom:1px solid rgba(30,36,48,0.6); transition:background 0.12s; }
+tbody tr:hover { background:var(--surface2); }
+tbody td { padding:10px; white-space:nowrap; }
+.table-wrap { overflow-x:auto; }
+.asset-name { font-family:'Syne',sans-serif; font-weight:600; font-size:0.78rem; }
+.num-cell { font-family:'DM Mono',monospace; font-size:0.78rem; }
+.pos { color:var(--positive); }
+.neg { color:var(--negative); }
+.category-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:0.62rem; font-family:'Syne',sans-serif; font-weight:700; letter-spacing:0.06em; }
+.cat-rf { background:rgba(0,229,160,0.12); color:var(--accent); }
+.cat-rv { background:rgba(74,158,255,0.12); color:var(--accent3); }
+.mini-bar { height:3px; background:var(--surface3); border-radius:2px; margin-top:4px; width:80px; }
+.mini-bar-fill { height:100%; border-radius:2px; }
+
+/* Scatter + Radar */
+.risk-meter { background:var(--surface2); border-radius:8px; padding:14px; }
+.risk-label { font-size:0.68rem; color:var(--muted); margin-bottom:8px; }
+.risk-scale { position:relative; height:8px; background:linear-gradient(to right,var(--accent),#f5c518,var(--red)); border-radius:4px; }
+.risk-needle { position:absolute; top:-4px; width:3px; height:16px; background:white; border-radius:2px; transform:translateX(-50%); }
+.risk-val { font-family:var(--font-num); font-size:1.5rem; }
+
+.dd-item { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:0.72rem; }
+.dd-dot  { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.dd-name { color:var(--muted); width:130px; flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dd-bar-wrap { flex:1; }
+.dd-bar  { height:5px; background:var(--surface3); border-radius:3px; }
+.dd-bar-fill { height:100%; border-radius:3px; transition:width 0.6s ease; }
+.dd-val  { font-family:'DM Mono',monospace; font-size:0.7rem; width:45px; text-align:right; flex-shrink:0; }
+
+.drawdown-card { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:18px; }
+
+/* Treemap */
+.treemap-legend { display:flex; gap:16px; flex-wrap:wrap; font-size:0.68rem; color:var(--muted); }
+.treemap-legend-item { display:flex; align-items:center; gap:5px; }
+.treemap-legend-dot  { width:10px; height:10px; border-radius:2px; }
+
+/* Geo map */
+.geo-wrap { position:relative; width:100%; }
+.geo-tooltip { position:absolute; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px 14px; font-size:0.72rem; pointer-events:none; display:none; min-width:180px; z-index:10; }
+.geo-tooltip h4 { font-family:'Syne',sans-serif; font-size:0.8rem; font-weight:700; margin-bottom:6px; }
+.gt-row { display:flex; justify-content:space-between; gap:12px; margin-bottom:3px; }
+.gt-label { color:var(--muted); }
+.gt-val   { font-family:'DM Mono',monospace; }
+.geo-legend { display:flex; flex-direction:column; gap:6px; }
+.geo-legend-item { display:flex; align-items:center; gap:8px; font-size:0.68rem; color:var(--muted); }
+.geo-legend-swatch { width:12px; height:12px; border-radius:2px; }
+.exposure-bar-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; font-size:0.7rem; }
+.er-flag { font-size:1rem; }
+.er-name { color:var(--muted); width:90px; flex-shrink:0; }
+.er-bar  { flex:1; height:5px; background:var(--surface3); border-radius:3px; overflow:hidden; }
+.er-fill { height:100%; border-radius:3px; transition:width 0.5s ease; }
+.er-pct  { font-family:'DM Mono',monospace; width:36px; text-align:right; }
+
+/* Analysis */
+.insight-item { display:flex; gap:14px; padding:14px 0; border-bottom:1px solid var(--border); }
+.insight-item:last-child { border-bottom:none; }
+.insight-icon { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; }
+.insight-icon.good   { background:rgba(0,229,160,0.12); }
+.insight-icon.warn   { background:rgba(245,158,11,0.12); }
+.insight-icon.danger { background:rgba(255,71,87,0.12); }
+.insight-icon.info   { background:rgba(74,158,255,0.12); }
+.insight-body h4 { font-family:'Syne',sans-serif; font-size:0.82rem; font-weight:700; margin-bottom:5px; }
+.insight-body p  { font-size:0.72rem; color:var(--muted); line-height:1.6; }
+.sev-bar { display:flex; gap:4px; margin-top:8px; }
+.sev-dot { width:14px; height:4px; border-radius:2px; background:var(--surface3); }
+.sev-dot.active.good   { background:var(--accent); }
+.sev-dot.active.warn   { background:#f5c518; }
+.sev-dot.active.danger { background:var(--red); }
+
+.rec-card { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:14px; }
+.rec-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.rec-header h4 { font-family:'Syne',sans-serif; font-size:0.8rem; font-weight:700; }
+.rec-type { font-size:0.62rem; font-family:'Syne',sans-serif; font-weight:700; padding:3px 9px; border-radius:4px; letter-spacing:0.06em; text-transform:uppercase; }
+.rec-type.buy   { background:rgba(0,229,160,0.15); color:var(--accent); }
+.rec-type.hold  { background:rgba(245,197,24,0.15); color:#f5c518; }
+.rec-type.sell  { background:rgba(255,71,87,0.15);  color:var(--red); }
+.rec-type.rebal { background:rgba(74,158,255,0.15); color:var(--accent3); }
+.rec-card p { font-size:0.72rem; color:var(--muted); line-height:1.6; }
+.rec-card.buy   { border-left:3px solid var(--accent); }
+.rec-card.hold  { border-left:3px solid #f5c518; }
+.rec-card.sell  { border-left:3px solid var(--red); }
+.rec-card.rebal { border-left:3px solid var(--accent3); }
+
+.stats-row { display:flex; gap:12px; flex-wrap:wrap; margin-top:16px; }
+.stat-box  { background:var(--surface3); border-radius:8px; padding:10px 14px; text-align:center; flex:1; min-width:80px; }
+.stat-box .val { font-family:var(--font-num); font-size:1.4rem; }
+.stat-box .lbl { font-size:0.62rem; color:var(--muted); margin-top:3px; letter-spacing:0.06em; }
+
+/* Evolución chart filter */
+.evo-filter { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+.evo-filter-btn {
+  padding:5px 14px; border-radius:5px; cursor:pointer; font-size:0.7rem;
+  font-family:'Syne',sans-serif; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;
+  border:1px solid var(--border); background:var(--surface2); color:var(--muted); transition:all 0.15s;
+}
+.evo-filter-btn.active-all { background:rgba(255,255,255,0.1); color:var(--text); border-color:var(--text); }
+.evo-filter-btn.active-rf  { background:rgba(0,229,160,0.15); color:var(--accent); border-color:var(--accent); }
+.evo-filter-btn.active-rv  { background:rgba(74,158,255,0.15); color:var(--accent3); border-color:var(--accent3); }
+</style>
+</head>
+<body>
+
+<!-- ████  UPLOAD SCREEN  ████ -->
+<div id="uploadScreen" style="position:fixed;inset:0;background:#0a0c0f;display:flex;align-items:center;justify-content:center;z-index:99999;flex-direction:column;background-image:linear-gradient(rgba(0,229,160,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,160,0.03) 1px,transparent 1px);background-size:44px 44px;">
+  <style>
+    @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+    @keyframes fadein{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes spin-loader{to{transform:rotate(360deg)}}
+    .upload-card{animation:fadein 0.5s ease both;}
+    .drop-zone{border:2px dashed #1e2430;border-radius:20px;padding:52px 60px;text-align:center;cursor:pointer;transition:all 0.25s ease;background:rgba(0,229,160,0.02);min-width:380px;}
+    .drop-zone:hover,.drop-zone.drag-over{border-color:#00e5a0;background:rgba(0,229,160,0.06);box-shadow:0 0 40px rgba(0,229,160,0.12);}
+    .drop-zone .icon{font-size:3.2rem;animation:float 3s ease-in-out infinite;display:block;margin-bottom:20px;}
+    .drop-zone h2{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;color:#e8ecf4;margin-bottom:8px;}
+    .drop-zone p{font-family:'DM Mono',monospace;font-size:0.75rem;color:#6b7a8d;margin-bottom:24px;line-height:1.6;}
+    .btn-upload{display:inline-flex;align-items:center;gap:8px;background:#00e5a0;color:#0a0c0f;font-family:'Syne',sans-serif;font-weight:800;font-size:0.82rem;letter-spacing:0.08em;padding:12px 24px;border-radius:10px;border:none;cursor:pointer;transition:all 0.2s ease;text-transform:uppercase;}
+    .btn-upload:hover{background:#00ffb3;box-shadow:0 0 24px rgba(0,229,160,0.4);}
+    .upload-hint{margin-top:14px;font-family:'DM Mono',monospace;font-size:0.67rem;color:#3a4a5a;}
+    .upload-error{margin-top:16px;padding:10px 16px;border-radius:8px;background:rgba(255,71,87,0.1);border:1px solid rgba(255,71,87,0.3);color:#ff4757;font-family:'DM Mono',monospace;font-size:0.72rem;display:none;}
+    .processing-bar{width:0%;height:3px;background:#00e5a0;border-radius:2px;transition:width 0.4s ease;margin-top:16px;}
+    .logo-mark{font-family:'Syne',sans-serif;font-weight:800;font-size:0.72rem;letter-spacing:0.2em;color:#00e5a0;margin-bottom:36px;text-transform:uppercase;opacity:0.8;}
+  </style>
+  <div class="upload-card">
+    <div class="logo-mark">◈ Portfolio Dashboard</div>
+    <div class="drop-zone" id="dropZone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+      <span class="icon">🗜️</span>
+      <h2>Carga tu ZIP para empezar</h2>
+      <p>Arrastra <strong style="color:#e8ecf4">cualquier .zip</strong> con los CSVs de GVC Gaesco<br><span style="font-size:0.68rem;color:#3a4a5a">Detecta automáticamente transacciones + históricos de cotizaciones</span></p>
+      <button class="btn-upload" onclick="document.getElementById('fileInput').click()">▲ &nbsp;Seleccionar archivo ZIP</button>
+      <div class="upload-hint">Compatible con .zip · Datos nunca salen de tu navegador</div>
+      <div class="processing-bar" id="processingBar"></div>
+      <div class="upload-error" id="uploadError"></div>
+    </div>
+  </div>
+  <input type="file" id="fileInput" accept=".zip" style="display:none" onchange="handleFileInput(event)">
+</div>
+
+<!-- ████  PROCESSING OVERLAY  ████ -->
+<div id="loadingOverlay" style="position:fixed;inset:0;background:rgba(10,12,15,0.97);display:none;align-items:center;justify-content:center;z-index:99998;flex-direction:column;gap:18px;">
+  <div style="width:50px;height:50px;border:3px solid #1e2430;border-top-color:#00e5a0;border-radius:50%;animation:spin-loader 0.8s linear infinite"></div>
+  <div style="font-family:'Syne',sans-serif;color:#00e5a0;font-size:0.9rem;font-weight:700;letter-spacing:0.12em">PROCESANDO ZIP</div>
+  <div style="font-family:'DM Mono',monospace;color:#6b7a8d;font-size:0.7rem" id="loadingMsg">Leyendo archivos…</div>
+</div>
+
+<!-- ████  UPDATE BUTTON  ████ -->
+<div id="updateBtn" style="position:fixed;bottom:24px;right:24px;z-index:9000;display:none;">
+  <button onclick="document.getElementById('fileInput2').click()" style="display:flex;align-items:center;gap:8px;background:#111419;border:1px solid #1e2430;color:#00e5a0;font-family:'DM Mono',monospace;font-size:0.72rem;padding:10px 16px;border-radius:10px;cursor:pointer;transition:all 0.2s ease;letter-spacing:0.05em;box-shadow:0 4px 20px rgba(0,0,0,0.4);" onmouseover="this.style.borderColor='#00e5a0';this.style.background='#0d1a14'" onmouseout="this.style.borderColor='#1e2430';this.style.background='#111419'">
+    ↑ Actualizar ZIP
+  </button>
+  <input type="file" id="fileInput2" accept=".zip" style="display:none" onchange="handleFileInput(event)">
+</div>
+
+<div class="container">
+
+<header>
+  <div class="header-left">
+    <h1>PORTFOLIO <span>DASHBOARD</span></h1>
+    <p id="headerSubtitle">GVC Gaesco · Fidelity · Pictet · Análisis Cartera</p>
+  </div>
+  <div class="header-right">
+    <div class="total-value" id="headerTotalVal">—</div>
+    <div class="total-gain" id="headerTotalGain">—</div>
+    <div class="date-badge" id="headerDate">—</div>
+  </div>
+</header>
+
+<div class="filter-bar">
+  <span class="filter-label">Filtrar por tipo:</span>
+  <button class="filter-btn active-all" id="fbAll" onclick="setFilter('all')">Toda la cartera</button>
+  <button class="filter-btn" id="fbRF"  onclick="setFilter('RF')">Renta Fija</button>
+  <button class="filter-btn" id="fbRV"  onclick="setFilter('RV')">Renta Variable</button>
+  <div class="filter-divider"></div>
+  <span id="filterStatus" style="font-size:0.7rem;color:var(--muted)">Mostrando: Todos los activos</span>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showPanel('overview',this)">Visión General</button>
+  <button class="tab" onclick="showPanel('returns',this)">Retornos</button>
+  <button class="tab" onclick="showPanel('assets',this)">Activos</button>
+  <button class="tab" onclick="showPanel('risk',this)">Riesgo</button>
+  <button class="tab" onclick="showPanel('analysis',this)">Análisis</button>
+</div>
+
+<!-- ██████  OVERVIEW  ██████ -->
+<div class="panel active" id="panel-overview">
+
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Valor Total Cartera</div>
+      <div class="kpi-value" id="kpiTotalVal">—</div>
+      <div class="kpi-sub pos" id="kpiTotalRtSub">—</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Ganancia Neta</div>
+      <div class="kpi-value" id="kpiGP">—</div>
+      <div class="kpi-sub">Plusvalía no realizada</div>
+    </div>
+    <div class="kpi-card green" id="kpiRF">
+      <div class="kpi-label">Renta Fija</div>
+      <div class="kpi-value" id="kpiRFVal">—</div>
+      <div class="kpi-sub pos" id="kpiRFSub">—</div>
+    </div>
+    <div class="kpi-card blue" id="kpiRV">
+      <div class="kpi-label">Renta Variable</div>
+      <div class="kpi-value" id="kpiRVVal">—</div>
+      <div class="kpi-sub pos" id="kpiRVSub">—</div>
+    </div>
+    <div class="kpi-card yellow">
+      <div class="kpi-label">Mejor Activo</div>
+      <div class="kpi-value" id="kpiBestVal">—</div>
+      <div class="kpi-sub" id="kpiBestName">—</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">Peor Activo</div>
+      <div class="kpi-value" id="kpiWorstVal">—</div>
+      <div class="kpi-sub neg" id="kpiWorstName">—</div>
+    </div>
+  </div>
+
+  <!-- EVOLUCIÓN REAL + DONUT -->
+  <div class="grid-12">
+    <div class="chart-card">
+      <div class="card-header">
+        <span class="card-title">Evolución de la Cartera — Valor Real</span>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <div class="evo-filter">
+            <button class="evo-filter-btn active-all" id="evoBtnAll" onclick="setEvoFilter('all',this)">Total</button>
+            <button class="evo-filter-btn" id="evoBtnRF"  onclick="setEvoFilter('RF',this)">Renta Fija</button>
+            <button class="evo-filter-btn" id="evoBtnRV"  onclick="setEvoFilter('RV',this)">Renta Variable</button>
+          </div>
+          <div class="tf-selector" style="border:1px solid var(--border);border-radius:6px;padding:2px;background:var(--surface2)">
+            <button class="tf-btn active" id="evoModeVal"  onclick="setEvoMode(this,'value')">€ Valor</button>
+            <button class="tf-btn"        id="evoModeGain" onclick="setEvoMode(this,'gain')">€ Ganancia</button>
+          </div>
+          <div class="tf-selector">
+            <button class="tf-btn active" onclick="setEvoRange(this,'all')">Todo</button>
+            <button class="tf-btn" onclick="setEvoRange(this,'1y')">1A</button>
+            <button class="tf-btn" onclick="setEvoRange(this,'6m')">6M</button>
+            <button class="tf-btn" onclick="setEvoRange(this,'3m')">3M</button>
+            <button class="tf-btn" onclick="setEvoRange(this,'1m')">1M</button>
+          </div>
+        </div>
+      </div>
+      <canvas id="evoChart" height="210"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="card-header"><span class="card-title">Distribución Actual</span></div>
+      <canvas id="donutChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="chart-card">
+      <div class="card-header"><span class="card-title">Retorno Total por Categoría</span><span class="card-badge">% sobre coste</span></div>
+      <canvas id="catReturnBar" height="180"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="card-header"><span class="card-title">YTD por Categoría</span><span class="card-badge">2026</span></div>
+      <canvas id="catYTDBar" height="180"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="card-header"><span class="card-title">MTD por Categoría</span><span class="card-badge">Feb 2026</span></div>
+      <canvas id="catMTDBar" height="180"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- ██████  RETURNS  ██████ -->
+<div class="panel" id="panel-returns">
+
+  <div class="section-sep"></div>
+  <div class="card-header"><span class="card-title" style="color:var(--accent)">● Renta Fija — Detalle de Retornos</span></div>
+  <div class="grid-2">
+    <div class="chart-card">
+      <div class="card-header"><span class="card-title">Retorno Total por Fondo RF</span></div>
+      <canvas id="rfTotalBar" height="200"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="card-header"><span class="card-title">YTD vs MTD — Renta Fija</span></div>
+      <canvas id="rfYTDMTDLine" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="section-sep"></div>
+  <div class="card-header"><span class="card-title" style="color:var(--accent3)">● Renta Variable — Detalle de Retornos</span></div>
+  <div class="grid-2">
+    <div class="chart-card">
+      <div class="card-header"><span class="card-title">Retorno Total por Fondo RV</span></div>
+      <canvas id="rvTotalBar" height="220"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="card-header"><span class="card-title">YTD vs MTD — Renta Variable</span></div>
+      <canvas id="rvYTDMTDLine" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="section-sep"></div>
+  <div class="chart-card mb18">
+    <div class="card-header"><span class="card-title">Ranking completo de rentabilidad — Todos los activos</span><span class="card-badge">% total sobre coste</span></div>
+    <canvas id="fullRankBar" height="180"></canvas>
+  </div>
+
+</div>
+
+<!-- ██████  ASSETS  ██████ -->
+<div class="panel" id="panel-assets">
+
+  <div class="chart-card mb18">
+    <div class="card-header">
+      <span class="card-title">Tabla de Activos</span>
+      <span class="card-badge" id="assetCount">—</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Activo</th><th>Cat.</th><th>Invertido</th><th>Valor Actual</th>
+            <th>G/P (€)</th><th>Rent. Total</th><th>YTD</th><th>MTD</th><th>Peso Cartera</th>
+          </tr>
+        </thead>
+        <tbody id="assetsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="chart-card mb18" style="padding:0;overflow:hidden">
+    <div class="card-header" style="padding:18px 22px 14px">
+      <span class="card-title">Mapa de Posiciones</span>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="card-badge">Tamaño = valor · Color = rentabilidad</span>
+        <div class="tf-selector">
+          <button class="tf-btn active" id="tmBtnTotal" onclick="switchTreemap(this,'total')">Total</button>
+          <button class="tf-btn" id="tmBtnYTD"   onclick="switchTreemap(this,'ytd')">YTD</button>
+          <button class="tf-btn" id="tmBtnMTD"   onclick="switchTreemap(this,'mtd')">MTD</button>
+        </div>
+      </div>
+    </div>
+    <div id="treemapSVGWrap" style="width:100%;line-height:0;position:relative"></div>
+    <div class="treemap-legend" style="padding:10px 22px 16px">
+      <div class="treemap-legend-item"><div class="treemap-legend-dot" style="background:#27ae60"></div>+20% o más</div>
+      <div class="treemap-legend-item"><div class="treemap-legend-dot" style="background:#2ecc71"></div>+10% a +20%</div>
+      <div class="treemap-legend-item"><div class="treemap-legend-dot" style="background:#1a6640"></div>0% a +10%</div>
+      <div class="treemap-legend-item"><div class="treemap-legend-dot" style="background:#922b21"></div>0% a −10%</div>
+      <div class="treemap-legend-item"><div class="treemap-legend-dot" style="background:#c0392b"></div>Menos de −10%</div>
+    </div>
+  </div>
+
+  <div class="chart-card mb18">
+    <div class="card-header">
+      <span class="card-title">Mapa Geográfico de Exposición</span>
+      <span class="card-badge">Peso estimado por región</span>
+    </div>
+    <div class="grid-21">
+      <div style="position:relative">
+        <div class="geo-wrap" id="geoWrap"></div>
+        <div class="geo-tooltip" id="geoTooltip"></div>
+      </div>
+      <div>
+        <div style="font-size:0.68rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px">Exposición por Región</div>
+        <div id="exposureBars"></div>
+        <div class="geo-legend" style="margin-top:16px">
+          <div class="geo-legend-item"><div class="geo-legend-swatch" style="background:#00e5a0"></div>Alta (>20%)</div>
+          <div class="geo-legend-item"><div class="geo-legend-swatch" style="background:#4a9eff"></div>Media (10–20%)</div>
+          <div class="geo-legend-item"><div class="geo-legend-swatch" style="background:#2a4a6a"></div>Baja (5–10%)</div>
+          <div class="geo-legend-item"><div class="geo-legend-swatch" style="background:#1e2430"></div>Mínima (&lt;5%)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ██████  RISK  ██████ -->
+<div class="panel" id="panel-risk">
+
+  <div class="kpi-grid">
+    <div class="kpi-card green">
+      <div class="kpi-label">Volatilidad RF (anual.)</div>
+      <div class="kpi-value" id="kpiVolRF">—</div>
+      <div class="kpi-sub pos">Muy baja · Defensivo</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">Volatilidad RV (anual.)</div>
+      <div class="kpi-value" id="kpiVolRV">—</div>
+      <div class="kpi-sub">Moderada · Crecimiento</div>
+    </div>
+    <div class="kpi-card yellow">
+      <div class="kpi-label">Sharpe Ratio Cartera</div>
+      <div class="kpi-value" id="kpiSharpe">—</div>
+      <div class="kpi-sub">Rf = 3% · ajustado al riesgo</div>
+    </div>
+    <div class="kpi-card yellow">
+      <div class="kpi-label">Rent. Anualiz. Pond.</div>
+      <div class="kpi-value" id="kpiAnnRet">—</div>
+      <div class="kpi-sub">Histórica de los fondos</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">Beta Estimada</div>
+      <div class="kpi-value" id="kpiBeta">—</div>
+      <div class="kpi-sub">vs mercado global</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Ret. Esperado Anual</div>
+      <div class="kpi-value" id="kpiExpRet">—</div>
+      <div class="kpi-sub">Pond. por peso en cartera</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="chart-card">
+      <div class="card-header">
+        <span class="card-title">Riesgo vs Rentabilidad</span>
+        <div class="tf-selector">
+          <button class="tf-btn active" id="scatterYTD" onclick="switchScatter(this,'ytd')">YTD</button>
+          <button class="tf-btn" id="scatterHist" onclick="switchScatter(this,'hist')">Histórico</button>
+        </div>
+      </div>
+      <div style="font-size:0.65rem;color:var(--muted);margin-bottom:10px">Burbuja = peso en cartera · X = volatilidad · Y = rentabilidad</div>
+      <canvas id="scatterChart" height="260"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="card-header"><span class="card-title">Radar de Perfil por Categoría</span></div>
+      <canvas id="radarChart" height="260"></canvas>
+    </div>
+  </div>
+
+  <div class="section-sep"></div>
+  <div class="card-header"><span class="card-title">📉 Drawdown Máximo por Tipo de Activo</span></div>
+  <div class="grid-2">
+    <div class="drawdown-card">
+      <div class="card-header" style="margin-bottom:14px">
+        <span class="card-title" style="color:var(--accent)">Renta Fija</span>
+        <span class="card-badge">Max DD histórico</span>
+      </div>
+      <div class="risk-meter" style="margin-bottom:16px">
+        <div class="risk-label">Drawdown máximo histórico RF</div>
+        <div class="risk-scale"><div class="risk-needle" id="ddNeedleRF" style="left:8%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:0.62rem;color:var(--muted);margin-top:4px"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+        <div class="risk-val" style="color:var(--accent);margin-top:8px" id="ddValRF">—</div>
+      </div>
+      <div id="ddRF"></div>
+    </div>
+    <div class="drawdown-card">
+      <div class="card-header" style="margin-bottom:14px">
+        <span class="card-title" style="color:var(--accent3)">Renta Variable</span>
+        <span class="card-badge">Max DD histórico</span>
+      </div>
+      <div class="risk-meter" style="margin-bottom:16px">
+        <div class="risk-label">Drawdown máximo histórico RV</div>
+        <div class="risk-scale"><div class="risk-needle" id="ddNeedleRV" style="left:30%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:0.62rem;color:var(--muted);margin-top:4px"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+        <div class="risk-val" style="color:var(--accent3);margin-top:8px" id="ddValRV">—</div>
+      </div>
+      <div id="ddRV"></div>
+    </div>
+  </div>
+
+  <div class="section-sep"></div>
+  <div class="grid-2">
+    <div class="chart-card">
+      <div class="card-header"><span class="card-title">Volatilidad Anualizada por Activo</span></div>
+      <canvas id="volBarChart" height="230"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="card-header"><span class="card-title">Distribución de Riesgo en Cartera</span><span class="card-badge">Capital en riesgo estimado</span></div>
+      <canvas id="riskDistChart" height="230"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- ██████  ANALYSIS  ██████ -->
+<div class="panel" id="panel-analysis">
+
+  <div class="grid-2">
+    <div class="chart-card">
+      <div class="card-header"><span class="card-title">🔍 Hallazgos Clave</span><span class="card-badge" id="insightCount">—</span></div>
+      <div id="insightList"></div>
+    </div>
+    <div class="chart-card">
+      <div class="card-header"><span class="card-title">💡 Recomendaciones</span><span class="card-badge">Basadas en datos reales</span></div>
+      <div id="recList"></div>
+      <div class="stats-row" id="statsRow"></div>
+    </div>
+  </div>
+
+  <div class="section-sep"></div>
+  <div class="chart-card mb18">
+    <div class="card-header"><span class="card-title">Cartera Actual vs Distribución Óptima Recomendada</span><span class="card-badge">% del capital</span></div>
+    <canvas id="optimizedChart" height="160"></canvas>
+  </div>
+
+</div>
+
+</div><!-- /container -->
+
+<script>
+// ════════════════════════════════════════
+//  GLOBALS
+// ════════════════════════════════════════
+let ASSETS = [];
+let PORTFOLIO_SUMMARY  = {};
+let PORTFOLIO_INPUTS   = {};
+let TOTAL_VAL = 0;
+let EVO_DATA  = {};   // { all: [{date, val}], RF: [...], RV: [...] }
+let evoFilter = 'all';
+let evoRange  = 'all';
+let evoMode   = 'value';  // 'value' | 'gain'
+
+const CAT_COLOR = { RF:'#00e5a0', RV:'#4a9eff' };
+const CAT_NAME  = { RF:'Renta Fija', RV:'Renta Variable' };
+const charts = {};
+function mkChart(id, cfg) {
+  if(charts[id]) charts[id].destroy();
+  const el = document.getElementById(id);
+  if (!el) return;
+  charts[id] = new Chart(el, cfg);
+  return charts[id];
+}
+
+// ════════════════════════════════════════
+//  DRAG & DROP
+// ════════════════════════════════════════
+function handleDragOver(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('drag-over'); }
+function handleDragLeave(e) { document.getElementById('dropZone').classList.remove('drag-over'); }
+function handleDrop(e) {
+  e.preventDefault(); document.getElementById('dropZone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+function handleFileInput(e) {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+  e.target.value = '';
+}
+function setProgress(pct) { document.getElementById('processingBar').style.width = pct + '%'; }
+function showError(msg) {
+  const el = document.getElementById('uploadError');
+  el.textContent = '⚠️  ' + msg; el.style.display = 'block'; setProgress(0);
+}
+
+// ════════════════════════════════════════
+//  ZIP PROCESSOR
+// ════════════════════════════════════════
+async function processFile(file) {
+  if (!file.name.match(/\.zip$/i)) { showError('Solo se admiten archivos .zip'); return; }
+  document.getElementById('loadingOverlay').style.display = 'flex';
+  document.getElementById('loadingMsg').textContent = 'Leyendo ZIP…';
+  setProgress(10);
+
+  try {
+    const buf = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(buf);
+    setProgress(20);
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function parseNum(s) {
+      if (!s && s !== 0) return 0;
+      s = String(s).trim().replace(/"/g,'');
+      if (!s) return 0;
+      return parseFloat(s.replace(/\./g,'').replace(',','.')) || 0;
+    }
+    function nn(n) { return n ? n.normalize('NFC').trim().replace(/^"|"$/g,'').trim() : ''; }
+    function csvLines(text) { return text.replace(/\r/g,'').split('\n').filter(l => l.trim()); }
+
+    // ── Find files ────────────────────────────────────────────────────────────
+    const allFiles = Object.keys(zip.files).filter(n => !n.includes('__MACOSX') && n.endsWith('.csv'));
+
+    // ── Smart file detection (no fixed name required) ──────────────────────
+    // Transactions file: contains "transacc" or "operac" or has tx-like columns
+    let txFile = allFiles.find(n => /transacc/i.test(n) || /operaci/i.test(n));
+    // Fallback: try reading first few lines of each CSV to detect transaction format
+    if (!txFile) {
+      for (const f of allFiles) {
+        const sample = await zip.files[f].async('string');
+        const lines = sample.split('\n').slice(0,3).join('\n');
+        if (/compra|venta|suscri/i.test(lines)) { txFile = f; break; }
+      }
+    }
+    if (!txFile) throw new Error('No se encontró el archivo de transacciones en el ZIP. Debe contener columnas de Compra/Venta.');
+
+    // Price files: contain "cotizac" or "precio" or "hist" in name, OR have date+price format
+    let priceFiles = allFiles.filter(n => /cotizac|precio|hist/i.test(n) && n !== txFile);
+    // Fallback: files that aren't the tx file and have date-like first column
+    if (priceFiles.length === 0) {
+      for (const f of allFiles) {
+        if (f === txFile) continue;
+        const sample = await zip.files[f].async('string');
+        const lines = sample.split('\n').slice(0,3);
+        if (lines[1] && /\d{4}[-\/]\d{2}/.test(lines[1].split(';')[0])) priceFiles.push(f);
+      }
+    }
+
+    // ── Parse transactions ────────────────────────────────────────────────────
+    document.getElementById('loadingMsg').textContent = 'Leyendo transacciones…';
+    setProgress(30);
+    const txText = await zip.files[txFile].async('string');
+    const txLines = csvLines(txText);
+    const txMap = {};
+    for (let i = 1; i < txLines.length; i++) {
+      const p = txLines[i].split(';');
+      if (p.length < 9) continue;
+      const fecha  = p[0].trim().slice(0,10);
+      const tipo   = p[1].trim();
+      const asset  = nn(p[2]);
+      const tit    = parseNum(p[3]);
+      const cant   = parseNum(p[5]);
+      if (!asset) continue;
+      if (!txMap[asset]) txMap[asset] = { titulos:0, invested:0, ops:[] };
+      if (tipo === 'Compra')  { txMap[asset].titulos += tit; txMap[asset].invested += cant; }
+      else if (tipo === 'Venta') { txMap[asset].titulos -= tit; txMap[asset].invested -= cant; }
+      txMap[asset].ops.push({ fecha, tipo, tit, cant });
+    }
+
+    // ── Parse price files ─────────────────────────────────────────────────────
+    document.getElementById('loadingMsg').textContent = 'Cargando cotizaciones…';
+    setProgress(45);
+    const priceMap = {};
+    for (const pf of priceFiles) {
+      const text  = await zip.files[pf].async('string');
+      const lines = csvLines(text);
+      const prices = {};
+      for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(';');
+        if (parts.length < 2) continue;
+        const d = parts[0].trim(), pv = parseNum(parts[1]);
+        if (d && pv) prices[d] = pv;
+      }
+      priceMap[pf.split('/').pop().normalize('NFC')] = prices;
+    }
+
+    // ── Match asset → price file ──────────────────────────────────────────────
+    function matchPrice(assetName) {
+      const an = assetName.toLowerCase();
+      const rules = [
+        ['msci world',          fn => fn.includes('MSCI_World')],
+        ['s&p 500',             fn => fn.includes('S&P_500')],
+        ['zebra',               fn => fn.includes('Zebra')],
+        ['global equity',       fn => fn.includes('Global_Equity')],
+        ['constantfons',        fn => fn.includes('Constantfons')],
+        ['emergentfond',        fn => fn.includes('Emergentfond')],
+        ['bolsalíder',          fn => fn.includes('Bolsal')],
+        ['bolsalider',          fn => fn.includes('Bolsal')],
+        ['horizonte',           fn => fn.includes('Horizonte')],
+        ['300 places worldwide conjunta', fn => fn.includes('300_Places_Worldwide_CONJUNTA')],
+        ['300 places worldwide', fn => fn.includes('300_Places_Worldwide.') && !fn.includes('CONJUNTA')],
+        ['japón a fi conjunta', fn => fn.includes('Jap') && fn.includes('CONJUNTA')],
+        ['japon a fi conjunta', fn => fn.includes('Jap') && fn.includes('CONJUNTA')],
+        ['japón a fi',          fn => fn.includes('Jap') && !fn.includes('CONJUNTA')],
+        ['japon a fi',          fn => fn.includes('Jap') && !fn.includes('CONJUNTA')],
+        ['renta fija flexible conjunta', fn => fn.includes('Renta_Fija_Flexible_CONJUNTA')],
+        ['renta fija flexible',          fn => fn.includes('Renta_Fija_Flexible.') && !fn.includes('CONJUNTA')],
+        ['small caps a fi',     fn => fn.includes('Small_Caps')],
+        ['v.i.f',               fn => fn.includes('V.I')],
+        ['value minu',          fn => fn.includes('Value_Minu')],
+        ['pictet',              fn => fn.includes('China') || fn.includes('Pictet')],
+        ['china',               fn => fn.includes('China') || fn.includes('Pictet')],
+      ];
+      for (const [needle, test] of rules) {
+        if (an.includes(needle)) {
+          const cand = Object.keys(priceMap).find(test);
+          if (cand) return cand;
+        }
+      }
+      return null;
+    }
+
+    // ── Category ──────────────────────────────────────────────────────────────
+    function cat(name) {
+      const n = name.toLowerCase();
+      if (n.includes('renta fija') || n.includes('constantfons') || n.includes('horizonte')) return 'RF';
+      return 'RV';
+    }
+
+    // ── Build assets ──────────────────────────────────────────────────────────
+    document.getElementById('loadingMsg').textContent = 'Calculando métricas…';
+    setProgress(60);
+
+    const assets = [];
+    let totalVal = 0, totalInv = 0;
+    const assetPriceData = {}; // for evo chart: assetName -> { prices{}, cat }
+
+    for (const [assetName, holding] of Object.entries(txMap)) {
+      if (holding.invested <= 0) continue;
+      const pfName = matchPrice(assetName);
+      if (!pfName || !priceMap[pfName]) continue;
+
+      const prices = priceMap[pfName];
+      const sortedDates = Object.keys(prices).sort();
+      if (!sortedDates.length) continue;
+
+      const latestDate  = sortedDates[sortedDates.length - 1];
+      const latestPrice = prices[latestDate];
+      const currentVal  = holding.titulos * latestPrice;
+      const gain        = currentVal - holding.invested;
+      const rt          = gain / holding.invested;
+
+      // Annualized return & vol
+      const sp = sortedDates.map(d => prices[d]);
+      let annRet = 0, vol = 0;
+      if (sp.length > 10) {
+        const dr = [];
+        for (let i = 1; i < sp.length; i++) dr.push((sp[i]/sp[i-1]) - 1);
+        const mean = dr.reduce((s,v)=>s+v,0)/dr.length;
+        const variance = dr.reduce((s,v)=>s+(v-mean)**2,0)/Math.max(dr.length-1,1);
+        vol = Math.sqrt(variance * 252);
+        const years = sp.length/252;
+        annRet = years > 0.1 ? Math.pow(latestPrice/sp[0], 1/years) - 1 : 0;
+      }
+
+      // Max drawdown
+      let peak = -Infinity, maxDD = 0;
+      sp.forEach(p => {
+        if (p > peak) peak = p;
+        const dd = (p - peak) / peak;
+        if (dd < maxDD) maxDD = dd;
+      });
+
+      // YTD
+      const ytdStart = sortedDates.find(d => d >= '2026-01-01');
+      const ytdPrice = ytdStart ? prices[ytdStart] : latestPrice;
+      const ytd = ytdPrice ? (latestPrice/ytdPrice - 1) : 0;
+
+      // MTD
+      const thisMonth = latestDate.slice(0,7);
+      const mtdStart  = sortedDates.find(d => d.startsWith(thisMonth));
+      const mtdPrice  = mtdStart ? prices[mtdStart] : latestPrice;
+      const mtd = mtdPrice ? (latestPrice/mtdPrice - 1) : 0;
+
+      // YTD Volatility (annualized from YTD daily returns)
+      let ytdVol = 0;
+      if (ytdStart) {
+        const ytdIdx = sortedDates.indexOf(ytdStart);
+        const ytdPrices = sortedDates.slice(ytdIdx).map(d => prices[d]);
+        if (ytdPrices.length > 5) {
+          const dr = [];
+          for (let i = 1; i < ytdPrices.length; i++) dr.push((ytdPrices[i]/ytdPrices[i-1]) - 1);
+          const m = dr.reduce((s,v)=>s+v,0)/dr.length;
+          const vr = dr.reduce((s,v)=>s+(v-m)**2,0)/Math.max(dr.length-1,1);
+          ytdVol = Math.sqrt(vr * 252);
+        }
+      }
+
+      const c = cat(assetName);
+      assets.push({ name:assetName, cat:c, inv:holding.invested, val:currentVal, gp:gain, rt, ytd, mtd, annRet, vol, ytdVol, maxDD, weight:0, latestDate, latestPrice });
+      assetPriceData[assetName] = { prices, cat:c, titulos:holding.titulos, ops:holding.ops };
+      totalVal += currentVal;
+      totalInv += holding.invested;
+    }
+
+    if (assets.length === 0) throw new Error('No se pudieron emparejar activos. Verifica el ZIP.');
+    assets.forEach(a => { a.weight = totalVal ? a.val/totalVal : 0; });
+
+    // ── Portfolio evolution (real) ─────────────────────────────────────────────
+    document.getElementById('loadingMsg').textContent = 'Calculando evolución…';
+    setProgress(72);
+
+    // Build sorted union of all dates
+    const allDatesSet = new Set();
+    for (const asset of assets) {
+      const pd = assetPriceData[asset.name];
+      if (pd) Object.keys(pd.prices).forEach(d => allDatesSet.add(d));
+    }
+    const allDates = Array.from(allDatesSet).sort();
+
+    // For each date, compute portfolio value
+    // Holdings change at each transaction date
+    // Build cumulative holdings timeline per asset
+    function buildHoldingsTimeline(ops) {
+      // Returns sorted array of {date, titulos, invested (cumulative cost basis)}
+      const sorted = [...ops].sort((a,b) => a.fecha.localeCompare(b.fecha));
+      const timeline = [];
+      let titulos = 0, costBasis = 0;
+      sorted.forEach(op => {
+        if (op.tipo === 'Compra') {
+          titulos += op.tit;
+          costBasis += op.cant;
+        } else if (op.tipo === 'Venta') {
+          // Proportional cost reduction on sale
+          const ratio = op.tit / Math.max(titulos, op.tit);
+          costBasis -= costBasis * ratio;
+          titulos -= op.tit;
+        }
+        timeline.push({ date: op.fecha, titulos: Math.max(titulos, 0), costBasis: Math.max(costBasis, 0) });
+      });
+      return timeline;
+    }
+
+    // Pre-build timelines
+    const timelines = {};
+    for (const a of assets) {
+      timelines[a.name] = buildHoldingsTimeline(assetPriceData[a.name].ops);
+    }
+
+    function getHoldingAtDate(timeline, date) {
+      // Returns { titulos, costBasis } for the last entry <= date
+      let titulos = 0, costBasis = 0;
+      for (const e of timeline) {
+        if (e.date <= date) { titulos = e.titulos; costBasis = e.costBasis; }
+        else break;
+      }
+      return { titulos, costBasis };
+    }
+
+    function getPrice(pricesObj, date) {
+      // exact or last before
+      if (pricesObj[date]) return pricesObj[date];
+      // find nearest prior
+      const keys = Object.keys(pricesObj).filter(d => d <= date).sort();
+      if (keys.length) return pricesObj[keys[keys.length-1]];
+      return null;
+    }
+
+    // Sample dates (every 3 trading days max for performance)
+    const step = Math.max(1, Math.floor(allDates.length / 400));
+    const sampledDates = allDates.filter((_, i) => i % step === 0);
+    // Always include last date
+    if (!sampledDates.includes(allDates[allDates.length-1])) sampledDates.push(allDates[allDates.length-1]);
+
+    const evoAll = [], evoRF = [], evoRV = [];
+
+    for (const date of sampledDates) {
+      let valAll = 0, valRF = 0, valRV = 0;
+      let costAll = 0, costRF = 0, costRV = 0;
+      for (const a of assets) {
+        const pd = assetPriceData[a.name];
+        const price = getPrice(pd.prices, date);
+        if (!price) continue;
+        const { titulos, costBasis } = getHoldingAtDate(timelines[a.name], date);
+        if (titulos <= 0) continue;
+        const val = titulos * price;
+        valAll  += val;       costAll  += costBasis;
+        if (a.cat === 'RF') { valRF += val; costRF += costBasis; }
+        else                { valRV += val; costRV += costBasis; }
+      }
+      if (valAll > 0) evoAll.push({ date, val: valAll, cost: costAll, gain: valAll - costAll });
+      if (valRF > 0)  evoRF.push({ date, val: valRF,  cost: costRF,  gain: valRF  - costRF  });
+      if (valRV > 0)  evoRV.push({ date, val: valRV,  cost: costRV,  gain: valRV  - costRV  });
+    }
+
+    EVO_DATA = { all: evoAll, RF: evoRF, RV: evoRV };
+
+    // ── Summary ────────────────────────────────────────────────────────────────
+    const catData = code => {
+      const grp = assets.filter(a => a.cat === code);
+      const inv  = grp.reduce((s,a)=>s+a.inv, 0);
+      const val  = grp.reduce((s,a)=>s+a.val, 0);
+      return { inv, val, gp:val-inv, rt: inv ? (val-inv)/inv : 0,
+        ytd: val ? grp.reduce((s,a)=>s+a.ytd*a.val,0)/val : 0,
+        mtd: val ? grp.reduce((s,a)=>s+a.mtd*a.val,0)/val : 0,
+        weight: totalVal ? val/totalVal : 0, count: grp.length,
+        avgVol: grp.length ? grp.reduce((s,a)=>s+a.vol*(a.inv/Math.max(totalInv,1)),0) : 0,
+        avgDD: grp.length ? grp.reduce((s,a)=>s+a.maxDD,0)/grp.length : 0,
+      };
+    };
+
+    const wVol    = assets.reduce((s,a)=>s+a.vol*(a.inv/Math.max(totalInv,1)),0);
+    const wAnnRet = assets.reduce((s,a)=>s+a.annRet*(a.inv/Math.max(totalInv,1)),0);
+    const portSharpe = wVol > 0.005 ? (wAnnRet - 0.03)/wVol : 0;
+
+    const sortedByRt = [...assets].sort((a,b)=>a.rt-b.rt);
+    const latest = assets.reduce((d,a) => a.latestDate > d ? a.latestDate : d, '');
+
+    ASSETS = assets;
+    TOTAL_VAL = totalVal;
+    PORTFOLIO_SUMMARY = {
+      total_inv:totalInv, total_val:totalVal, total_gp:totalVal-totalInv,
+      total_rt: totalInv ? (totalVal-totalInv)/totalInv : 0,
+      updated_at: latest,
+      best: sortedByRt.at(-1), worst: sortedByRt[0],
+      cats: { RF: catData('RF'), RV: catData('RV') },
+    };
+    PORTFOLIO_INPUTS = { wVol, wAnnRet, portSharpe };
+
+    setProgress(90);
+    document.getElementById('loadingMsg').textContent = 'Renderizando…';
+    setTimeout(() => {
+      document.getElementById('loadingOverlay').style.display = 'none';
+      document.getElementById('uploadScreen').style.display   = 'none';
+      document.getElementById('updateBtn').style.display      = 'block';
+      bootDashboard();
+      setProgress(100);
+    }, 250);
+
+  } catch(err) {
+    document.getElementById('loadingOverlay').style.display = 'none';
+    showError(err.message || 'Error al procesar el ZIP.');
+    console.error(err);
+  }
+}
+
+// ════════════════════════════════════════
+//  BOOT
+// ════════════════════════════════════════
+function bootDashboard() {
+  const s = PORTFOLIO_SUMMARY;
+  // Header
+  document.getElementById('headerTotalVal').textContent  = '€' + s.total_val.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const gp = s.total_gp, rt = s.total_rt * 100;
+  document.getElementById('headerTotalGain').textContent = (gp>=0?'▲ +€':'▼ -€') + Math.abs(gp).toLocaleString('es-ES',{maximumFractionDigits:2}) + ' · ' + (rt>=0?'+':'') + rt.toFixed(2) + '% total';
+  document.getElementById('headerTotalGain').style.color = gp>=0 ? 'var(--positive)' : 'var(--negative)';
+  document.getElementById('headerDate').textContent = 'Última cotización: ' + s.updated_at;
+
+  // Reset charts
+  Object.keys(charts).forEach(k => { try { charts[k].destroy(); } catch(e){} delete charts[k]; });
+
+  updateKPICards();
+  activateTab('overview');
+  buildOverviewCharts();
+}
+
+// ════════════════════════════════════════
+//  KPI CARDS
+// ════════════════════════════════════════
+function updateKPICards() {
+  const s = PORTFOLIO_SUMMARY;
+  const rf = s.cats?.RF || {}, rv = s.cats?.RV || {};
+  function sk(id, v) { const el = document.getElementById(id); if(el) el.textContent = v; }
+  function sc(id, cls) { const el = document.getElementById(id); if(el) { el.classList.remove('pos','neg'); el.classList.add(cls); } }
+  sk('kpiTotalVal',  '€' + (s.total_val||0).toLocaleString('es-ES',{maximumFractionDigits:0}));
+  sk('kpiTotalRtSub', ((s.total_rt||0)*100).toFixed(2) + '% sobre coste');
+  sk('kpiGP',    (s.total_gp>=0?'+€':'-€') + Math.abs(s.total_gp||0).toLocaleString('es-ES',{maximumFractionDigits:0}));
+  sk('kpiRFVal', '€' + (rf.val||0).toLocaleString('es-ES',{maximumFractionDigits:0}));
+  sk('kpiRFSub', ((rf.rt||0)*100).toFixed(2) + '% · ' + ((rf.weight||0)*100).toFixed(1) + '% cartera');
+  sk('kpiRVVal', '€' + (rv.val||0).toLocaleString('es-ES',{maximumFractionDigits:0}));
+  sk('kpiRVSub', ((rv.rt||0)*100).toFixed(2) + '% · ' + ((rv.weight||0)*100).toFixed(1) + '% cartera');
+  if (s.best)  { sk('kpiBestVal',  '+' + (s.best.rt*100).toFixed(1)+'%'); sk('kpiBestName',  s.best.name.replace('GVC Gaesco ','').slice(0,24)); }
+  if (s.worst) { sk('kpiWorstVal', (s.worst.rt*100).toFixed(1)+'%'); sk('kpiWorstName', s.worst.name.replace('GVC Gaesco ','').slice(0,24)); }
+}
+
+// ════════════════════════════════════════
+//  FILTER
+// ════════════════════════════════════════
+let activeFilter = 'all';
+let activeTabId  = 'overview';
+
+function setFilter(f) {
+  activeFilter = f;
+  ['fbAll','fbRF','fbRV'].forEach(id => { const el = document.getElementById(id); if(el) el.className = 'filter-btn'; });
+  if (f==='all') document.getElementById('fbAll').classList.add('active-all');
+  if (f==='RF')  document.getElementById('fbRF').classList.add('active-rf');
+  if (f==='RV')  document.getElementById('fbRV').classList.add('active-rv');
+  const cnt = f==='all' ? ASSETS.length : ASSETS.filter(a=>a.cat===f).length;
+  document.getElementById('filterStatus').textContent = `Mostrando: ${f==='all'?'Todos los activos':'Renta '+(f==='RF'?'Fija':'Variable')} (${cnt})`;
+  activateTab('overview');
+  setTimeout(() => { buildOverviewCharts(); renderAssetsTable(); }, 30);
+}
+
+function filteredAssets() {
+  return activeFilter==='all' ? ASSETS : ASSETS.filter(a=>a.cat===activeFilter);
+}
+
+// ════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════
+function p(v,d=2){ return (v>=0?'+':'') + (v*100).toFixed(d) + '%'; }
+function fmtEur(v){ return (v>=0?'+€':'-€') + Math.abs(v).toLocaleString('es-ES',{maximumFractionDigits:0}); }
+function colorFor(v){ return v>=0?'#00e5a0':'#ff4757'; }
+
+// ════════════════════════════════════════
+//  EVO CHART
+// ════════════════════════════════════════
+function setEvoFilter(f, btn) {
+  evoFilter = f;
+  document.querySelectorAll('.evo-filter-btn').forEach(b => {
+    b.className = 'evo-filter-btn';
+  });
+  if (f==='all') btn.classList.add('active-all');
+  if (f==='RF')  btn.classList.add('active-rf');
+  if (f==='RV')  btn.classList.add('active-rv');
+  buildEvoChart();
+}
+
+function setEvoRange(btn, range) {
+  evoRange = range;
+  btn.closest('.tf-selector').querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  buildEvoChart();
+}
+
+function setEvoMode(btn, mode) {
+  evoMode = mode;
+  btn.closest('.tf-selector').querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  buildEvoChart();
+}
+
+function filterEvoData(data) {
+  if (!data || !data.length) return [];
+  if (evoRange === 'all') return data;
+  const now = data[data.length-1].date;
+  const cutoffs = { '1y': d => d >= shiftDate(now,-365), '6m': d => d >= shiftDate(now,-182), '3m': d => d >= shiftDate(now,-91), '1m': d => d >= shiftDate(now,-30) };
+  const test = cutoffs[evoRange];
+  return test ? data.filter(e => test(e.date)) : data;
+}
+
+function shiftDate(dateStr, days) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0,10);
+}
+
+function buildEvoChart() {
+  const raw = EVO_DATA[evoFilter] || [];
+  const data = filterEvoData(raw);
+  if (!data.length) return;
+
+  const isGain = evoMode === 'gain';
+  const getVal = e => isGain ? e.gain : e.val;
+
+  const colorMap = { all:'#e8ecf4', RF:'#00e5a0', RV:'#4a9eff' };
+  const labelMap = { all:'Cartera Total', RF:'Renta Fija', RV:'Renta Variable' };
+  const color = colorMap[evoFilter];
+
+  const labels = data.map(e => e.date);
+  const values = data.map(getVal);
+
+  // For gain mode, color segments green/red based on sign
+  const gainGradientPlugin = isGain ? [{
+    id: 'gainZeroLine',
+    beforeDraw(chart) {
+      const {ctx, scales:{y,x}, chartArea} = chart;
+      if (!y) return;
+      const zero = y.getPixelForValue(0);
+      if (zero < chartArea.top || zero > chartArea.bottom) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.setLineDash([4,4]);
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1;
+      ctx.moveTo(chartArea.left, zero);
+      ctx.lineTo(chartArea.right, zero);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }] : [];
+
+  let datasets = [];
+  if (evoFilter === 'all') {
+    const rfData = filterEvoData(EVO_DATA.RF || []);
+    const rvData = filterEvoData(EVO_DATA.RV || []);
+    datasets = [
+      { label:'Cartera Total', data: values,
+        borderColor:'#e8ecf4', backgroundColor:'rgba(232,236,244,0.06)',
+        tension:0.3, fill:true, pointRadius:0, borderWidth:2 },
+      { label:'Renta Fija',
+        data: labels.map(d => { const e = rfData.find(x=>x.date===d); return e ? getVal(e) : null; }),
+        borderColor:'#00e5a0', backgroundColor:'rgba(0,229,160,0.05)',
+        tension:0.3, fill: isGain ? false : true, pointRadius:0, borderWidth:1.5, spanGaps:true },
+      { label:'Renta Variable',
+        data: labels.map(d => { const e = rvData.find(x=>x.date===d); return e ? getVal(e) : null; }),
+        borderColor:'#4a9eff', backgroundColor:'rgba(74,158,255,0.05)',
+        tension:0.3, fill: isGain ? false : true, pointRadius:0, borderWidth:1.5, spanGaps:true },
+    ];
+  } else {
+    // Single series — color by gain sign if in gain mode
+    const bgColor = isGain
+      ? (values.at(-1) >= 0 ? 'rgba(0,229,160,0.12)' : 'rgba(255,71,87,0.12)')
+      : color + '18';
+    const lineColor = isGain
+      ? (values.at(-1) >= 0 ? '#00e5a0' : '#ff4757')
+      : color;
+    datasets = [{ label: labelMap[evoFilter], data: values,
+      borderColor: lineColor, backgroundColor: bgColor,
+      tension:0.3, fill:true, pointRadius:0, borderWidth:2 }];
+  }
+
+  // Add invested cost basis as reference line in gain mode
+  if (isGain && evoFilter !== 'all') {
+    // Already shown as 0 line (gain = val - cost, so 0 = breakeven)
+  }
+
+  const yTitle = isGain ? 'Ganancia / Pérdida' : 'Valor de Cartera';
+
+  mkChart('evoChart', {
+    type:'line',
+    data:{ labels, datasets },
+    plugins: gainGradientPlugin,
+    options:{
+      responsive:true,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ position:'bottom', labels:{ padding:14, boxWidth:10, font:{size:10} } },
+        tooltip:{
+          callbacks:{
+            label: ctx => {
+              const v = ctx.parsed.y;
+              const sign = v >= 0 ? '+€' : '-€';
+              return `${ctx.dataset.label}: ${isGain ? sign+Math.abs(v).toLocaleString('es-ES',{maximumFractionDigits:0}) : '€'+v.toLocaleString('es-ES',{maximumFractionDigits:0})}`;
+            },
+            title: ctx => ctx[0].label
+          }
+        }
+      },
+      scales:{
+        y:{
+          grid:{ color:'#1e2430' },
+          ticks:{
+            callback: v => {
+              if (isGain) {
+                const sign = v >= 0 ? '+€' : '-€';
+                return sign + Math.abs(v/1000).toFixed(1) + 'k';
+              }
+              return '€' + (v/1000).toFixed(0) + 'k';
+            },
+            color:'#6b7a8d', font:{size:10}
+          }
+        },
+        x:{
+          grid:{ display:false },
+          ticks:{ color:'#6b7a8d', font:{size:10}, maxTicksLimit:10 }
+        }
+      }
+    }
+  });
+}
+
+// ════════════════════════════════════════
+//  OVERVIEW CHARTS
+// ════════════════════════════════════════
+function buildOverviewCharts() {
+  buildEvoChart();
+
+  const fa = filteredAssets();
+  const totalVal = fa.reduce((s,a)=>s+a.val, 0);
+  const cats = activeFilter==='all' ? ['RF','RV'] : [activeFilter];
+
+  // Category bars
+  const catRt  = cats.map(c=>{ const g=fa.filter(a=>a.cat===c); const i=g.reduce((s,a)=>s+a.inv,0); const v=g.reduce((s,a)=>s+a.val,0); return i>0?((v-i)/i*100):0; });
+  const catYtd = cats.map(c=>{ const g=fa.filter(a=>a.cat===c); return g.length ? g.reduce((s,a)=>s+a.ytd*a.val,0)/Math.max(g.reduce((s,a)=>s+a.val,0),1)*100 : 0; });
+  const catMtd = cats.map(c=>{ const g=fa.filter(a=>a.cat===c); return g.length ? g.reduce((s,a)=>s+a.mtd*a.val,0)/Math.max(g.reduce((s,a)=>s+a.val,0),1)*100 : 0; });
+  const catLabels = cats.map(c=>CAT_NAME[c]);
+  const catBg = cats.map(c=>CAT_COLOR[c]);
+  const barOpts = (yLabel) => ({ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{grid:{color:'#1e2430'},ticks:{callback:v=>v.toFixed(1)+'%'}}, x:{grid:{display:false}} } });
+
+  mkChart('catReturnBar',{type:'bar',data:{labels:catLabels,datasets:[{label:'Total %',data:catRt.map(v=>+v.toFixed(2)),backgroundColor:cats.map(c=>CAT_COLOR[c]+'aa'),borderColor:catBg,borderWidth:1,borderRadius:6}]},options:barOpts()});
+  mkChart('catYTDBar',   {type:'bar',data:{labels:catLabels,datasets:[{label:'YTD %',data:catYtd.map(v=>+v.toFixed(2)),backgroundColor:cats.map(c=>CAT_COLOR[c]+'aa'),borderColor:catBg,borderWidth:1,borderRadius:6}]},options:barOpts()});
+  mkChart('catMTDBar',   {type:'bar',data:{labels:catLabels,datasets:[{label:'MTD %',data:catMtd.map(v=>+v.toFixed(2)),backgroundColor:catMtd.map(v=>v>=0?'rgba(0,229,160,0.5)':'rgba(255,71,87,0.5)'),borderColor:catMtd.map(v=>v>=0?'#00e5a0':'#ff4757'),borderWidth:1,borderRadius:6}]},options:barOpts()});
+
+  // Donut
+  if (activeFilter==='all') {
+    const rfVal = PORTFOLIO_SUMMARY.cats?.RF?.val || 0;
+    const rvVal = PORTFOLIO_SUMMARY.cats?.RV?.val || 0;
+    mkChart('donutChart',{type:'doughnut',data:{labels:['Renta Fija','Renta Variable'],datasets:[{data:[rfVal,rvVal],backgroundColor:['#00e5a0','#4a9eff'],borderColor:'#0a0c0f',borderWidth:3,hoverOffset:8}]},options:{responsive:true,cutout:'66%',plugins:{legend:{position:'bottom',labels:{padding:14,font:{size:10},boxWidth:8}},tooltip:{callbacks:{label:ctx=>`€${ctx.parsed.toLocaleString('es-ES',{maximumFractionDigits:0})} (${(ctx.parsed/TOTAL_VAL*100).toFixed(1)}%)`}}}}});
+  } else {
+    const g = fa;
+    mkChart('donutChart',{type:'doughnut',data:{labels:g.map(a=>a.name.replace('GVC Gaesco ','')),datasets:[{data:g.map(a=>a.val),backgroundColor:g.map((_,i)=>CAT_COLOR[fa[0]?.cat]+(Math.floor(i*30+120).toString(16))),borderColor:'#0a0c0f',borderWidth:2,hoverOffset:6}]},options:{responsive:true,cutout:'60%',plugins:{legend:{position:'bottom',labels:{padding:8,font:{size:9},boxWidth:6}}}}});
+  }
+}
+
+// ════════════════════════════════════════
+//  RETURNS CHARTS
+// ════════════════════════════════════════
+function buildReturnCharts() {
+  const rf = ASSETS.filter(a=>a.cat==='RF');
+  const rv = ASSETS.filter(a=>a.cat==='RV');
+
+  const hOpts = (suffix='%') => ({indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#1e2430'},ticks:{callback:v=>v+suffix}},y:{grid:{display:false}}}});
+  const vOpts = () => ({responsive:true,plugins:{legend:{position:'bottom',labels:{padding:10,boxWidth:8,font:{size:10}}}},scales:{y:{grid:{color:'#1e2430'},ticks:{callback:v=>v+'%'}},x:{grid:{display:false},ticks:{font:{size:8},maxRotation:40}}}});
+
+  mkChart('rfTotalBar',{type:'bar',data:{labels:rf.map(a=>a.name.replace('GVC Gaesco ','')),datasets:[{data:rf.map(a=>+(a.rt*100).toFixed(2)),backgroundColor:'rgba(0,229,160,0.5)',borderColor:'#00e5a0',borderWidth:1,borderRadius:5}]},options:hOpts()});
+  mkChart('rfYTDMTDLine',{type:'bar',data:{labels:rf.map(a=>a.name.replace('GVC Gaesco ','')),datasets:[{label:'YTD %',data:rf.map(a=>+(a.ytd*100).toFixed(2)),backgroundColor:'rgba(0,229,160,0.5)',borderColor:'#00e5a0',borderWidth:1,borderRadius:4},{label:'MTD %',data:rf.map(a=>+(a.mtd*100).toFixed(2)),backgroundColor:'rgba(245,197,24,0.5)',borderColor:'#f5c518',borderWidth:1,borderRadius:4}]},options:vOpts()});
+  mkChart('rvTotalBar',{type:'bar',data:{labels:rv.map(a=>a.name.replace('GVC Gaesco ','')),datasets:[{data:rv.map(a=>+(a.rt*100).toFixed(2)),backgroundColor:rv.map(a=>a.rt>=0?'rgba(74,158,255,0.5)':'rgba(255,71,87,0.5)'),borderColor:rv.map(a=>a.rt>=0?'#4a9eff':'#ff4757'),borderWidth:1,borderRadius:5}]},options:hOpts()});
+  mkChart('rvYTDMTDLine',{type:'bar',data:{labels:rv.map(a=>a.name.replace('GVC Gaesco ','')),datasets:[{label:'YTD %',data:rv.map(a=>+(a.ytd*100).toFixed(2)),backgroundColor:'rgba(74,158,255,0.5)',borderColor:'#4a9eff',borderWidth:1,borderRadius:4},{label:'MTD %',data:rv.map(a=>+(a.mtd*100).toFixed(2)),backgroundColor:'rgba(0,229,160,0.5)',borderColor:'#00e5a0',borderWidth:1,borderRadius:4}]},options:vOpts()});
+
+  const sorted = [...ASSETS].sort((a,b)=>b.rt-a.rt);
+  mkChart('fullRankBar',{type:'bar',data:{labels:sorted.map(a=>a.name.replace('GVC Gaesco ','')),datasets:[{data:sorted.map(a=>+(a.rt*100).toFixed(2)),backgroundColor:sorted.map(a=>a.rt>=0?(a.cat==='RF'?'rgba(0,229,160,0.6)':'rgba(74,158,255,0.6)'):'rgba(255,71,87,0.6)'),borderColor:sorted.map(a=>a.rt>=0?(a.cat==='RF'?'#00e5a0':'#4a9eff'):'#ff4757'),borderWidth:1,borderRadius:4}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{grid:{color:'#1e2430'},ticks:{callback:v=>v+'%'}},x:{grid:{display:false},ticks:{font:{size:8},maxRotation:45}}}}});
+}
+
+// ════════════════════════════════════════
+//  ASSETS TABLE
+// ════════════════════════════════════════
+function renderAssetsTable() {
+  const fa = filteredAssets();
+  document.getElementById('assetCount').textContent = `${fa.length} activos`;
+  const tbody = document.getElementById('assetsBody');
+  tbody.innerHTML = '';
+  fa.forEach(a => {
+    const w = (a.val/TOTAL_VAL*100).toFixed(1);
+    tbody.innerHTML += `
+    <tr>
+      <td><span class="asset-name">${a.name}</span></td>
+      <td><span class="category-badge cat-${a.cat.toLowerCase()}">${CAT_NAME[a.cat]}</span></td>
+      <td><span class="num-cell">€${a.inv.toLocaleString('es-ES',{maximumFractionDigits:0})}</span></td>
+      <td><span class="num-cell">€${a.val.toLocaleString('es-ES',{maximumFractionDigits:0})}</span></td>
+      <td><span class="num-cell ${a.gp>=0?'pos':'neg'}">${fmtEur(a.gp)}</span></td>
+      <td><span class="num-cell ${a.rt>=0?'pos':'neg'}">${p(a.rt)}</span></td>
+      <td><span class="num-cell ${a.ytd>=0?'pos':'neg'}">${p(a.ytd)}</span></td>
+      <td><span class="num-cell ${a.mtd>=0?'pos':'neg'}">${p(a.mtd)}</span></td>
+      <td style="min-width:100px">
+        <span class="num-cell">${w}%</span>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:${Math.min(+w*3,100)}%;background:${CAT_COLOR[a.cat]}"></div></div>
+      </td>
+    </tr>`;
+  });
+}
+
+// ════════════════════════════════════════
+//  RISK CHARTS
+// ════════════════════════════════════════
+function buildRiskCharts() {
+  const s = PORTFOLIO_SUMMARY;
+  const inp = PORTFOLIO_INPUTS;
+  const rf = ASSETS.filter(a=>a.cat==='RF');
+  const rv = ASSETS.filter(a=>a.cat==='RV');
+
+  // KPIs
+  function sk(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; }
+  const avgVolRF = rf.reduce((s,a)=>s+a.vol,0)/Math.max(rf.length,1);
+  const avgVolRV = rv.reduce((s,a)=>s+a.vol,0)/Math.max(rv.length,1);
+  sk('kpiVolRF',  '±' + (avgVolRF*100).toFixed(1) + '%');
+  sk('kpiVolRV',  '±' + (avgVolRV*100).toFixed(1) + '%');
+  sk('kpiSharpe', (inp.portSharpe||0).toFixed(2));
+  sk('kpiAnnRet', ((inp.wAnnRet||0)*100).toFixed(1)+'%');
+  const beta = 0.35 + (s.cats?.RV?.weight||0)*0.65;
+  sk('kpiBeta',   beta.toFixed(2));
+  sk('kpiExpRet', ((inp.wAnnRet||0)*100).toFixed(1)+'%');
+
+  // Scatter: YTD vol vs YTD return (primary), with toggle for annualized
+  window.buildScatterChart = function(mode) {
+    mode = mode || 'ytd';
+    const getX = a => mode === 'ytd' ? (a.ytdVol||a.vol)*100 : a.vol*100;
+    const getY = a => mode === 'ytd' ? a.ytd*100 : a.annRet*100;
+    const xLabel = mode === 'ytd' ? 'Volatilidad YTD annualiz. %' : 'Volatilidad histórica annualiz. %';
+    const yLabel = mode === 'ytd' ? 'Rentabilidad YTD %' : 'Rentabilidad anualizada histórica %';
+    // Size = portfolio weight (proportional)
+    const maxVal = Math.max(...ASSETS.map(a=>a.val));
+    mkChart('scatterChart',{
+      type:'bubble',
+      data:{datasets:[
+        {label:'Renta Fija',
+         data:rf.map(a=>({x:getX(a), y:getY(a), r: Math.max(4, Math.sqrt(a.val/maxVal)*28), label:a.name, a})),
+         backgroundColor:'rgba(0,229,160,0.45)',borderColor:'#00e5a0',borderWidth:1.5},
+        {label:'Renta Variable',
+         data:rv.map(a=>({x:getX(a), y:getY(a), r: Math.max(4, Math.sqrt(a.val/maxVal)*28), label:a.name, a})),
+         backgroundColor:'rgba(74,158,255,0.45)',borderColor:'#4a9eff',borderWidth:1.5},
+      ]},
+      options:{
+        responsive:true,
+        plugins:{
+          legend:{position:'bottom',labels:{padding:12,boxWidth:8,font:{size:10}}},
+          tooltip:{callbacks:{
+            label:ctx=>{
+              const d=ctx.raw;
+              return [`${d.label}`,`  Rent: ${d.y.toFixed(2)}%`,`  Vol: ±${d.x.toFixed(2)}%`,`  Valor: €${d.a.val.toLocaleString('es-ES',{maximumFractionDigits:0})}`];
+            }
+          }}
+        },
+        scales:{
+          x:{title:{display:true,text:xLabel,color:'#6b7a8d',font:{size:10}},grid:{color:'#1e2430'},
+             ticks:{color:'#6b7a8d',callback:v=>v.toFixed(1)+'%'}},
+          y:{title:{display:true,text:yLabel,color:'#6b7a8d',font:{size:10}},grid:{color:'#1e2430'},
+             ticks:{color:'#6b7a8d',callback:v=>v.toFixed(1)+'%'}}
+        }
+      }
+    });
+  };
+  window.buildScatterChart('ytd');
+
+  // Radar
+  const rfRet = (s.cats?.RF?.rt||0)*100, rvRet = (s.cats?.RV?.rt||0)*100;
+  mkChart('radarChart',{
+    type:'radar',
+    data:{
+      labels:['Rentabilidad','Estabilidad','Diversificación','Liquidez','Momentum 2026'],
+      datasets:[
+        {label:'Renta Fija',data:[Math.min(rfRet*3,100), 90, 55, 65, (s.cats?.RF?.ytd||0)*100*8+50],fill:true,backgroundColor:'rgba(0,229,160,0.12)',borderColor:'#00e5a0',pointBackgroundColor:'#00e5a0'},
+        {label:'Renta Variable',data:[Math.min(rvRet*3,100), 55, 82, 75, (s.cats?.RV?.ytd||0)*100*5+55],fill:true,backgroundColor:'rgba(74,158,255,0.12)',borderColor:'#4a9eff',pointBackgroundColor:'#4a9eff'},
+      ]
+    },
+    options:{responsive:true,scales:{r:{grid:{color:'#1e2430'},pointLabels:{font:{size:10}},ticks:{display:false},suggestedMin:0,suggestedMax:100}},plugins:{legend:{position:'bottom',labels:{padding:12,boxWidth:8,font:{size:10}}}}}
+  });
+
+  // Drawdown
+  const maxDDRF = Math.max(...rf.map(a=>Math.abs(a.maxDD)*100));
+  const maxDDRV = Math.max(...rv.map(a=>Math.abs(a.maxDD)*100));
+  const ddNeedleRF = document.getElementById('ddNeedleRF');
+  const ddNeedleRV = document.getElementById('ddNeedleRV');
+  if (ddNeedleRF) ddNeedleRF.style.left = Math.min(maxDDRF,100)+'%';
+  if (ddNeedleRV) ddNeedleRV.style.left = Math.min(maxDDRV,100)+'%';
+  sk('ddValRF', '-' + maxDDRF.toFixed(1) + '%');
+  sk('ddValRV', '-' + maxDDRV.toFixed(1) + '%');
+
+  function renderDD(id, items) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = [...items].sort((a,b)=>b.dd-a.dd).map(d=>
+      `<div class="dd-item"><div class="dd-dot" style="background:${d.c}"></div><span class="dd-name">${d.n}</span><div class="dd-bar-wrap"><div class="dd-bar"><div class="dd-bar-fill" style="width:${Math.min(d.dd,100)}%;background:${d.dd>25?'#ff4757':d.dd>10?'#ff6b35':'#00e5a0'}"></div></div></div><span class="dd-val">−${d.dd.toFixed(1)}%</span></div>`
+    ).join('');
+  }
+  renderDD('ddRF', rf.map(a=>({n:a.name.replace('GVC Gaesco ',''), dd:Math.abs(a.maxDD)*100, c:'#00e5a0'})));
+  renderDD('ddRV', rv.map(a=>({n:a.name.replace('GVC Gaesco ',''), dd:Math.abs(a.maxDD)*100, c:'#4a9eff'})));
+
+  // Volatility bar chart
+  const sorted = [...ASSETS].sort((a,b)=>b.vol-a.vol);
+  mkChart('volBarChart',{type:'bar',data:{labels:sorted.map(a=>a.name.replace('GVC Gaesco ','')),datasets:[{label:'Volatilidad anual.',data:sorted.map(a=>+(a.vol*100).toFixed(1)),backgroundColor:sorted.map(a=>a.cat==='RF'?'rgba(0,229,160,0.5)':'rgba(74,158,255,0.5)'),borderColor:sorted.map(a=>a.cat==='RF'?'#00e5a0':'#4a9eff'),borderWidth:1,borderRadius:5}]},options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#1e2430'},ticks:{callback:v=>v+'%'}},y:{grid:{display:false},ticks:{font:{size:9}}}}}});
+
+  // Risk distribution donut
+  const rfRisk = (PORTFOLIO_SUMMARY.cats?.RF?.val||0) * Math.abs(PORTFOLIO_SUMMARY.cats?.RF?.avgDD||0.05);
+  const rvRisk = (PORTFOLIO_SUMMARY.cats?.RV?.val||0) * Math.abs(PORTFOLIO_SUMMARY.cats?.RV?.avgDD||0.25);
+  mkChart('riskDistChart',{type:'doughnut',data:{labels:['RF — Riesgo bajo','RV — Riesgo moderado'],datasets:[{data:[rfRisk,rvRisk],backgroundColor:['rgba(0,229,160,0.6)','rgba(74,158,255,0.6)'],borderColor:'#0a0c0f',borderWidth:3,hoverOffset:6}]},options:{responsive:true,cutout:'58%',plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:10},boxWidth:8}},tooltip:{callbacks:{label:ctx=>`Capital en riesgo est.: €${ctx.parsed.toLocaleString('es-ES',{maximumFractionDigits:0})}`}}}}});
+}
+
+function switchScatter(btn, mode) {
+  ['scatterYTD','scatterHist'].forEach(id=>{ const el=document.getElementById(id); if(el)el.classList.remove('active'); });
+  btn.classList.add('active');
+  if (window.buildScatterChart) window.buildScatterChart(mode);
+}
+
+// ════════════════════════════════════════
+//  ANALYSIS
+// ════════════════════════════════════════
+function buildAnalysisCharts() {
+  const s  = PORTFOLIO_SUMMARY;
+  const rf = s.cats?.RF || {}, rv = s.cats?.RV || {};
+  const rfPct = ((rf.weight||0)*100).toFixed(1);
+  const rvPct = ((rv.weight||0)*100).toFixed(1);
+  const rfRet = ((rf.rt||0)*100).toFixed(2);
+  const rvRet = ((rv.rt||0)*100).toFixed(2);
+  const bestName  = s.best?.name?.replace('GVC Gaesco ','') || '—';
+  const worstName = s.worst?.name?.replace('GVC Gaesco ','') || '—';
+  const totalRt   = ((s.total_rt||0)*100).toFixed(2);
+
+  const insights = [
+    { icon:'✅', cls:'good',
+      title: `Cartera sólida: +${totalRt}% sobre capital invertido`,
+      text: `${ASSETS.filter(a=>a.rt>0).length} de ${ASSETS.length} activos están en positivo. La cartera acumula +€${(s.total_gp||0).toLocaleString('es-ES',{maximumFractionDigits:0})} de ganancia latente sobre €${(s.total_inv||0).toLocaleString('es-ES',{maximumFractionDigits:0})} invertidos.`,
+      sev:[1,1,1,1,0], sevCls:'good' },
+    { icon:'📊', cls:'warn',
+      title: `Renta Fija (${rfPct}% cartera): alta concentración`,
+      text: `€${(rf.val||0).toLocaleString('es-ES',{maximumFractionDigits:0})} en RF ofrecen estabilidad con +${rfRet}% acumulado. La concentración >65% limita el potencial alcista a largo plazo. Con horizonte >3 años, rotar gradualmente a RV mejoraría la eficiencia.`,
+      sev:[1,1,1,0,0], sevCls:'warn' },
+    { icon:'🌏', cls:'good',
+      title: `Renta Variable (+${rvRet}%): mejor ratio rentabilidad/riesgo`,
+      text: `Los fondos de RV superan a RF en retorno total (+${(((rv.rt||0)-(rf.rt||0))*100).toFixed(1)}pp de diferencial). Japón, 300 Places Worldwide y Global Equity DS A lideran el ranking de retorno.`,
+      sev:[1,1,1,1,0], sevCls:'good' },
+    { icon:'🔄', cls:'info',
+      title: 'Fondos CONJUNTA: consolida posiciones duplicadas',
+      text: `Tienes posiciones en variantes "CONJUNTA" e "individual" de los mismos fondos (300 Places, Japón, RF Flexible). Tienen idéntica cotización. Consolidar simplificaría el seguimiento sin perder exposición.`,
+      sev:[1,1,0,0,0], sevCls:'warn' },
+    { icon:'📈', cls:'good',
+      title: `Mejor activo: ${bestName}`,
+      text: `Con +${(s.best?.rt*100||0).toFixed(1)}% de retorno total es el activo más rentable de la cartera. Candidato a incrementar peso en próximas aportaciones aprovechando correcciones del mercado.`,
+      sev:[1,1,1,1,1], sevCls:'good' },
+    { icon:'⚠️', cls:'warn',
+      title: `Activo más débil: ${worstName}`,
+      text: `Con ${(s.worst?.rt*100||0).toFixed(1)}% de retorno total. Evalúa si la tesis de inversión sigue vigente o si el capital puede redirigirse hacia activos con mejor momentum.`,
+      sev:[1,1,0,0,0], sevCls:'warn' },
+  ];
+
+  document.getElementById('insightCount').textContent = insights.length + ' insights';
+  document.getElementById('insightList').innerHTML = insights.map(ins => `
+    <div class="insight-item">
+      <div class="insight-icon ${ins.cls}">${ins.icon}</div>
+      <div class="insight-body">
+        <h4>${ins.title}</h4>
+        <p>${ins.text}</p>
+        <div class="sev-bar">${ins.sev.map(v=>`<div class="sev-dot${v?' active '+ins.sevCls:''}"></div>`).join('')}</div>
+      </div>
+    </div>`).join('');
+
+  const recs = [
+    { cls:'buy', type:'buy', title:'Incrementar RV en correcciones',
+      text:`Renta Variable genera +${rvRet}% vs +${rfRet}% de RF. En caídas de RV del −5% al −10%, incrementar posiciones en ${bestName} y los fondos de mayor Sharpe. Objetivo a 12 meses: elevar RV al ${Math.min(Math.round(+rvPct/5+1)*5, 40)}–${Math.min(Math.round(+rvPct/5+2)*5, 45)}%.` },
+    { cls:'hold', type:'hold', title:'Mantener ancla de RF con estrategia',
+      text:`Renta Fija aporta estabilidad esencial. Mantener RF Horizonte y RF Flexible como núcleo defensivo. Redirigir nuevas aportaciones hacia RV en proporción 60/40 (60% RV, 40% RF) hasta alcanzar distribución objetivo.` },
+    { cls:'rebal', type:'rebal', title:'Consolidar posiciones CONJUNTA',
+      text:`Fundir las posiciones CONJUNTA con sus equivalentes individuales para simplificar la cartera. No hay impacto en la exposición pero reduce la complejidad operativa y facilita el seguimiento.` },
+    { cls:'buy', type:'buy', title:'Ampliar Fidelity Index Funds',
+      text:`Fidelity MSCI World y S&P 500 son los fondos de menor coste con exposición global. Incrementarlos aporta diversificación de gestora fuera de GVC Gaesco. Candidatos ideales para aportaciones periódicas sistemáticas.` },
+  ];
+
+  document.getElementById('recList').innerHTML = recs.map(r => `
+    <div class="rec-card ${r.cls}">
+      <div class="rec-header"><span class="rec-type ${r.type}">${r.type==='buy'?'Comprar':r.type==='hold'?'Mantener':r.type==='sell'?'Reducir':'Rebalancear'}</span><h4>${r.title}</h4></div>
+      <p>${r.text}</p>
+    </div>`).join('');
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-box"><div class="val" style="color:var(--accent)">+${totalRt}%</div><div class="lbl">Retorno actual</div></div>
+    <div class="stat-box"><div class="val" style="color:var(--accent3)">${rfPct}%</div><div class="lbl">% en RF</div></div>
+    <div class="stat-box"><div class="val" style="color:var(--accent3)">${rvPct}%</div><div class="lbl">% en RV</div></div>
+    <div class="stat-box"><div class="val" style="color:var(--accent)">${ASSETS.length}</div><div class="lbl">Fondos activos</div></div>`;
+
+  // Optimized chart: actual vs recommended
+  const targetRF = Math.max(+rfPct - 8, 60);
+  const targetRV = Math.min(+rvPct + 8, 40);
+  mkChart('optimizedChart',{type:'bar',data:{labels:['RF actual','RV actual','RF objetivo','RV objetivo'],datasets:[{label:'% Cartera',data:[+rfPct,+rvPct,targetRF,targetRV],backgroundColor:['rgba(0,229,160,0.5)','rgba(74,158,255,0.5)','rgba(0,229,160,0.9)','rgba(74,158,255,0.9)'],borderColor:['#00e5a0','#4a9eff','#00e5a0','#4a9eff'],borderWidth:2,borderRadius:6}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y}% del portafolio`}}},scales:{y:{grid:{color:'#1e2430'},ticks:{callback:v=>v+'%'},max:100},x:{grid:{display:false}}}}});
+}
+
+// ════════════════════════════════════════
+//  TREEMAP
+// ════════════════════════════════════════
+let treemapMode = 'total';
+function tmColor(v) {
+  if (v >= 0.20) return { bg:'#1a7a3a', hi:'#27ae60', txt:'#afffca' };
+  if (v >= 0.10) return { bg:'#155c2e', hi:'#1e8449', txt:'#7dffaa' };
+  if (v >= 0.03) return { bg:'#0e3d1e', hi:'#196f3d', txt:'#52d68a' };
+  if (v >= 0)    return { bg:'#0a2812', hi:'#0e5c2e', txt:'#3ab06a' };
+  if (v >= -0.10)return { bg:'#5c1010', hi:'#922b21', txt:'#ffb3b3' };
+  return              { bg:'#7b1414', hi:'#c0392b', txt:'#ffd5d5' };
+}
+function squarifyLayout(items, x, y, w, h, total) {
+  if (!items.length) return [];
+  const cells = []; let rem = [...items];
+  while (rem.length) {
+    const row = []; let rowArea = 0;
+    const isH = w >= h; const side = isH ? h : w;
+    let best = Infinity;
+    for (let i = 0; i < rem.length; i++) {
+      row.push(rem[i]); rowArea += rem[i].val;
+      const rowW = (rowArea/total)*(isH?w:h);
+      let worst = 0;
+      for (const it of row) { const cs=(it.val/rowArea)*side; const r=Math.max(rowW/cs,cs/rowW); if(r>worst)worst=r; }
+      if (worst > best) { row.pop(); break; }
+      best = worst;
+    }
+    rem = rem.slice(row.length);
+    const usedArea = row.reduce((s,a)=>s+a.val,0);
+    const rowW = (usedArea/total)*(isH?w:h);
+    let pos = isH ? y : x;
+    for (const it of row) {
+      const cs = (it.val/usedArea)*side;
+      cells.push(isH ? {item:it,x,y:pos,w:rowW,h:cs} : {item:it,x:pos,y,w:cs,h:rowW});
+      pos += cs;
+    }
+    if (isH) { x+=rowW; w-=rowW; } else { y+=rowW; h-=rowW; }
+  }
+  return cells;
+}
+let tmTooltip = null;
+function ensureTMTooltip() {
+  if (!tmTooltip) {
+    tmTooltip = document.createElement('div');
+    tmTooltip.style.cssText = 'position:fixed;background:#1a1f2a;border:1px solid #2d3748;border-radius:8px;padding:12px 16px;pointer-events:none;font-size:13px;z-index:9999;display:none;min-width:200px;box-shadow:0 8px 32px rgba(0,0,0,0.6);';
+    document.body.appendChild(tmTooltip);
+  }
+  return tmTooltip;
+}
+function buildTreemap(mode) {
+  treemapMode = mode;
+  const wrap = document.getElementById('treemapSVGWrap');
+  if (!wrap) return;
+  const W = wrap.offsetWidth || 900;
+  const HEADER = 22, GAP = 2;
+  const CATS_ORDER = ['RF','RV'];
+  const allData = filteredAssets();
+  const groups = CATS_ORDER.map(cat=>{
+    const items = allData.filter(a=>a.cat===cat&&a.val>0).map(a=>({
+      name: a.name.replace('GVC Gaesco ','GVC '),
+      shortName: a.name.replace(/GVC Gaesco ?/,'').replace(/GVC ?/,'').replace(' FI','').replace(' CONJUNTA','*').replace(' Index Fund','').replace(' Index','').trim(),
+      cat:a.cat, val:a.val, inv:a.inv,
+      rt: mode==='total'?a.rt:mode==='ytd'?a.ytd:a.mtd,
+      fullName:a.name
+    }));
+    return { cat, items, total:items.reduce((s,a)=>s+a.val,0) };
+  }).filter(g=>g.items.length>0);
+  const grandTotal = groups.reduce((s,g)=>s+g.total,0);
+  const groupRects = []; let gx=0;
+  groups.forEach(g=>{ const gw=(g.total/grandTotal)*W; groupRects.push({...g,x:gx,gw}); gx+=gw; });
+  const H = Math.max(400, Math.round(W*0.45));
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS,'svg');
+  svg.setAttribute('viewBox',`0 0 ${W} ${H+HEADER}`);
+  svg.setAttribute('width','100%');
+  svg.style.cssText = 'display:block;background:#0a0c0f;';
+  const tt = ensureTMTooltip();
+  groupRects.forEach(({cat,items,x:gx,gw,total:gTotal})=>{
+    const catCol = CAT_COLOR[cat];
+    const catBg  = cat==='RF'?'#0a1f14':'#0a1220';
+    const hRect = document.createElementNS(svgNS,'rect');
+    hRect.setAttribute('x',gx+GAP); hRect.setAttribute('y',0); hRect.setAttribute('width',gw-GAP*2); hRect.setAttribute('height',HEADER); hRect.setAttribute('fill',catBg); hRect.setAttribute('rx',2);
+    svg.appendChild(hRect);
+    const acc = document.createElementNS(svgNS,'rect');
+    acc.setAttribute('x',gx+GAP); acc.setAttribute('y',0); acc.setAttribute('width',3); acc.setAttribute('height',HEADER); acc.setAttribute('fill',catCol);
+    svg.appendChild(acc);
+    const hTxt = document.createElementNS(svgNS,'text');
+    hTxt.setAttribute('x',gx+GAP+10); hTxt.setAttribute('y',HEADER-7); hTxt.setAttribute('fill',catCol); hTxt.setAttribute('font-family','Syne,sans-serif'); hTxt.setAttribute('font-size','10'); hTxt.setAttribute('font-weight','700'); hTxt.setAttribute('letter-spacing','1');
+    hTxt.textContent = CAT_NAME[cat].toUpperCase(); svg.appendChild(hTxt);
+    const pctTxt = document.createElementNS(svgNS,'text');
+    pctTxt.setAttribute('x',gx+gw-GAP-6); pctTxt.setAttribute('y',HEADER-7); pctTxt.setAttribute('fill',catCol); pctTxt.setAttribute('font-family','DM Mono,monospace'); pctTxt.setAttribute('font-size','9'); pctTxt.setAttribute('text-anchor','end'); pctTxt.setAttribute('opacity','0.7');
+    pctTxt.textContent = ((gTotal/grandTotal)*100).toFixed(1)+'% cartera'; svg.appendChild(pctTxt);
+    const cells = squarifyLayout([...items].sort((a,b)=>b.val-a.val), gx+GAP, HEADER+GAP, gw-GAP*2, H-GAP*2, gTotal);
+    cells.forEach(({item,x,y,w,h})=>{
+      if(w<1||h<1)return;
+      const c=tmColor(item.rt); const pct=(item.rt*100).toFixed(2); const sign=item.rt>=0?'+':'';
+      const cellG=document.createElementNS(svgNS,'g'); cellG.style.cursor='pointer';
+      const bg=document.createElementNS(svgNS,'rect');
+      bg.setAttribute('x',x); bg.setAttribute('y',y); bg.setAttribute('width',Math.max(w-GAP,1)); bg.setAttribute('height',Math.max(h-GAP,1)); bg.setAttribute('fill',c.bg); bg.setAttribute('rx','2');
+      cellG.appendChild(bg);
+      const border=document.createElementNS(svgNS,'rect');
+      border.setAttribute('x',x); border.setAttribute('y',y); border.setAttribute('width',Math.max(w-GAP,1)); border.setAttribute('height',Math.max(h-GAP,1)); border.setAttribute('fill','none'); border.setAttribute('stroke','#0a0c0f'); border.setAttribute('stroke-width','1.5'); border.setAttribute('rx','2');
+      cellG.appendChild(border);
+      const cw=w-GAP, ch=h-GAP;
+      if(cw>28&&ch>18){
+        const fs=Math.min(Math.max(Math.floor(cw/7),8),ch>60?16:ch>40?12:9);
+        const ne=document.createElementNS(svgNS,'text');
+        ne.setAttribute('x',x+cw/2); ne.setAttribute('y',ch>55?y+ch/2-8:y+ch/2+1); ne.setAttribute('text-anchor','middle'); ne.setAttribute('dominant-baseline','middle'); ne.setAttribute('font-family','Syne,sans-serif'); ne.setAttribute('font-weight','700'); ne.setAttribute('font-size',fs); ne.setAttribute('fill','#fff'); ne.setAttribute('pointer-events','none');
+        const mc=Math.floor(cw/(fs*0.55));
+        ne.textContent = item.shortName.length>mc ? item.shortName.slice(0,Math.max(mc-1,3))+'…' : item.shortName;
+        cellG.appendChild(ne);
+        if(ch>38){
+          const ve=document.createElementNS(svgNS,'text');
+          ve.setAttribute('x',x+cw/2); ve.setAttribute('y',y+ch/2+(ch>55?14:12)); ve.setAttribute('text-anchor','middle'); ve.setAttribute('dominant-baseline','middle'); ve.setAttribute('font-family','"Bebas Neue",cursive'); ve.setAttribute('font-size',(Math.min(Math.max(Math.floor(cw/8),7),ch>60?13:10)+2)); ve.setAttribute('fill',c.txt); ve.setAttribute('pointer-events','none');
+          ve.textContent=sign+pct+'%'; cellG.appendChild(ve);
+        }
+      }
+      cellG.addEventListener('mouseenter',()=>{ bg.setAttribute('fill',c.hi); tt.innerHTML=`<div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:8px;color:#fff">${item.fullName}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:12px"><span style="color:#6b7a8d">Categoría</span><span style="color:${catCol};font-weight:600">${CAT_NAME[cat]}</span><span style="color:#6b7a8d">Valor actual</span><span style="font-family:'Bebas Neue';font-size:14px;color:#fff">€${item.val.toLocaleString('es-ES',{maximumFractionDigits:0})}</span><span style="color:#6b7a8d">Rentabilidad</span><span style="font-family:'Bebas Neue';font-size:14px;color:${c.txt}">${sign}${pct}%</span><span style="color:#6b7a8d">Peso</span><span style="color:#fff">${(item.val/grandTotal*100).toFixed(1)}%</span></div>`; tt.style.display='block'; });
+      cellG.addEventListener('mousemove',(e)=>{ let l=e.clientX+14; let t=e.clientY-10; if(l+220>window.innerWidth)l=e.clientX-234; tt.style.left=l+'px'; tt.style.top=t+'px'; });
+      cellG.addEventListener('mouseleave',()=>{ bg.setAttribute('fill',c.bg); tt.style.display='none'; });
+      svg.appendChild(cellG);
+    });
+  });
+  wrap.innerHTML=''; wrap.appendChild(svg);
+}
+function switchTreemap(btn, mode) {
+  ['tmBtnTotal','tmBtnYTD','tmBtnMTD'].forEach(id=>{ const el=document.getElementById(id); if(el)el.classList.remove('active'); });
+  btn.classList.add('active'); buildTreemap(mode);
+}
+
+// ════════════════════════════════════════
+//  GEO MAP
+// ════════════════════════════════════════
+const GEO_REGIONS = [
+  { id:'esp',   flag:'🇪🇸', name:'España',          pct:12.0, color:'#00e5a0' },
+  { id:'eur',   flag:'🇪🇺', name:'Europa',          pct:18.0, color:'#00e5a0' },
+  { id:'usa',   flag:'🇺🇸', name:'EE.UU.',          pct:28.5, color:'#00e5a0' },
+  { id:'jpn',   flag:'🇯🇵', name:'Japón',           pct:10.5, color:'#4a9eff' },
+  { id:'chn',   flag:'🇨🇳', name:'China',           pct:4.5,  color:'#2a4a6a' },
+  { id:'emerg', flag:'🌏',  name:'Emergentes',      pct:7.0,  color:'#2a4a6a' },
+  { id:'glb',   flag:'🌐',  name:'Global',          pct:8.5,  color:'#4a9eff' },
+  { id:'rf_int',flag:'💼',  name:'RF Internacional', pct:11.0, color:'#4a9eff' },
+];
+const SVG_COUNTRIES = [
+  {id:'usa', d:'M 75,95 L 185,95 L 185,75 L 220,75 L 220,55 L 250,55 L 250,95 L 300,95 L 300,150 L 250,170 L 200,165 L 150,155 L 100,155 L 75,140 Z', label:'EE.UU.'},
+  {id:'can', d:'M 75,55 L 300,55 L 300,95 L 75,95 Z', label:'Canadá'},
+  {id:'mex', d:'M 100,155 L 230,155 L 230,190 L 175,195 L 130,190 Z', label:'México'},
+  {id:'bra', d:'M 210,195 L 320,190 L 330,250 L 310,300 L 250,305 L 200,280 L 195,240 Z', label:'Brasil'},
+  {id:'arg', d:'M 215,305 L 295,300 L 285,365 L 250,380 L 220,360 Z', label:'Argentina'},
+  {id:'gbr', d:'M 415,90 L 430,90 L 430,110 L 415,110 Z', label:'Reino Unido'},
+  {id:'esp', d:'M 405,120 L 455,120 L 455,145 L 405,145 Z', label:'España'},
+  {id:'fra', d:'M 420,110 L 460,110 L 465,140 L 420,140 Z', label:'Francia'},
+  {id:'deu', d:'M 450,95 L 490,95 L 495,125 L 450,130 Z', label:'Alemania'},
+  {id:'ita', d:'M 455,130 L 490,130 L 495,155 L 475,165 L 460,160 L 455,145 Z', label:'Italia'},
+  {id:'rus', d:'M 490,55 L 730,40 L 740,100 L 700,110 L 600,115 L 500,115 L 490,90 Z', label:'Rusia'},
+  {id:'chn', d:'M 650,115 L 760,115 L 770,170 L 730,185 L 680,190 L 640,175 L 630,150 Z', label:'China'},
+  {id:'jpn', d:'M 770,115 L 795,115 L 800,145 L 790,155 L 775,155 L 770,140 Z', label:'Japón'},
+  {id:'ind', d:'M 610,170 L 670,170 L 680,190 L 670,230 L 640,250 L 610,240 L 600,210 Z', label:'India'},
+  {id:'aus', d:'M 680,255 L 790,245 L 810,295 L 800,335 L 750,350 L 700,340 L 670,305 L 665,275 Z', label:'Australia'},
+  {id:'zaf', d:'M 470,265 L 520,260 L 530,305 L 510,325 L 480,320 L 460,295 Z', label:'Sudáfrica'},
+  {id:'tur', d:'M 500,140 L 545,138 L 548,158 L 502,160 Z', label:'Turquía'},
+  {id:'sau', d:'M 525,160 L 580,158 L 585,195 L 545,200 L 520,190 Z', label:'Arabia Saudí'},
+  {id:'swe', d:'M 460,60 L 480,58 L 485,90 L 463,90 Z', label:'Suecia'},
+  {id:'pol', d:'M 470,100 L 505,100 L 508,125 L 472,126 Z', label:'Polonia'},
+  {id:'idn', d:'M 700,240 L 760,235 L 765,255 L 755,265 L 700,265 Z', label:'Indonesia'},
+  {id:'kor', d:'M 755,150 L 770,150 L 772,165 L 756,165 Z', label:'Corea del Sur'},
+];
+const COUNTRY_EXPOSURE = {
+  usa:'usa', can:'usa', aus:'usa',
+  esp:'esp',
+  fra:'eur', deu:'eur', ita:'eur', gbr:'eur', swe:'eur', pol:'eur',
+  jpn:'jpn',
+  chn:'chn',
+  ind:'emerg', bra:'emerg', kor:'emerg', idn:'emerg', tur:'emerg', sau:'emerg', zaf:'emerg',
+  rus:null, mex:null, arg:null,
+};
+function geoColor(rid) {
+  const r = GEO_REGIONS.find(g=>g.id===rid);
+  if (!r) return '#111419';
+  if (r.pct >= 20) return '#00e5a0';
+  if (r.pct >= 10) return '#4a9eff';
+  if (r.pct >= 5)  return '#2a4a6a';
+  return '#1e2430';
+}
+function buildGeoMap() {
+  const wrap=document.getElementById('geoWrap');
+  const tooltip=document.getElementById('geoTooltip');
+  if(!wrap)return;
+  const svgNS='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(svgNS,'svg');
+  svg.setAttribute('viewBox','50 30 820 380');
+  svg.style.cssText='background:#0a0c0f;border-radius:8px;width:100%;';
+  const ocean=document.createElementNS(svgNS,'rect');
+  ocean.setAttribute('x','50');ocean.setAttribute('y','30');ocean.setAttribute('width','820');ocean.setAttribute('height','380');ocean.setAttribute('fill','#0d1117');
+  svg.appendChild(ocean);
+  SVG_COUNTRIES.forEach(c=>{
+    const path=document.createElementNS(svgNS,'path');
+    path.setAttribute('d',c.d);
+    const rid=COUNTRY_EXPOSURE[c.id];
+    path.setAttribute('fill',rid?geoColor(rid):'#13181f');
+    if(rid){
+      path.addEventListener('mouseenter',(e)=>{
+        const region=GEO_REGIONS.find(g=>g.id===rid);
+        if(!region)return;
+        tooltip.style.display='block';
+        tooltip.innerHTML=`<h4>${region.flag} ${c.label} — ${region.name}</h4><div class="gt-row"><span class="gt-label">Exposición</span><span class="gt-val" style="color:${region.color}">${region.pct.toFixed(1)}%</span></div><div class="gt-row"><span class="gt-label">Valor est.</span><span class="gt-val">€${Math.round(TOTAL_VAL*region.pct/100).toLocaleString('es-ES')}</span></div>`;
+      });
+      path.addEventListener('mousemove',(e)=>{
+        const rect=wrap.getBoundingClientRect();
+        let l=e.clientX-rect.left+12,t=e.clientY-rect.top-10;
+        if(l+200>rect.width)l-=210; tooltip.style.left=l+'px'; tooltip.style.top=t+'px';
+      });
+      path.addEventListener('mouseleave',()=>tooltip.style.display='none');
+    }
+    svg.appendChild(path);
+    const labelPos={usa:[188,120],esp:[430,133],jpn:[783,135],chn:[700,150],ind:[640,210],aus:[735,295],bra:[260,250]};
+    const pos=labelPos[c.id];
+    if(pos){
+      const txt=document.createElementNS(svgNS,'text');
+      txt.setAttribute('x',pos[0]);txt.setAttribute('y',pos[1]);txt.setAttribute('fill','rgba(255,255,255,0.5)');txt.setAttribute('font-size','8');txt.setAttribute('font-family','Syne,sans-serif');txt.setAttribute('text-anchor','middle');txt.setAttribute('pointer-events','none');
+      txt.textContent=c.label; svg.appendChild(txt);
+    }
+  });
+  wrap.innerHTML=''; wrap.appendChild(svg); wrap.appendChild(tooltip);
+  const barsEl=document.getElementById('exposureBars');
+  if(barsEl){
+    barsEl.innerHTML=[...GEO_REGIONS].sort((a,b)=>b.pct-a.pct).map(r=>`
+      <div class="exposure-bar-row">
+        <span class="er-flag">${r.flag}</span><span class="er-name">${r.name}</span>
+        <div class="er-bar"><div class="er-fill" style="width:${(r.pct/35*100).toFixed(1)}%;background:${r.color}"></div></div>
+        <span class="er-pct">${r.pct.toFixed(1)}%</span>
+      </div>`).join('');
+  }
+}
+
+// ════════════════════════════════════════
+//  TABS
+// ════════════════════════════════════════
+const tabBuilt = {};
+function activateTab(id) {
+  activeTabId = id;
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  const labelMap={overview:'Visión General',returns:'Retornos',assets:'Activos',risk:'Riesgo',analysis:'Análisis'};
+  document.querySelectorAll('.tab').forEach(t=>{t.classList.remove('active');if(t.textContent.trim()===labelMap[id])t.classList.add('active');});
+  if(id==='returns'  && !tabBuilt.returns)  { tabBuilt.returns=1;  setTimeout(buildReturnCharts,30); }
+  if(id==='risk'     && !tabBuilt.risk)     { tabBuilt.risk=1;     setTimeout(buildRiskCharts,30); }
+  if(id==='analysis' && !tabBuilt.analysis) { tabBuilt.analysis=1; setTimeout(buildAnalysisCharts,30); }
+  if(id==='assets') { renderAssetsTable(); setTimeout(()=>{buildTreemap(treemapMode);buildGeoMap();},50); }
+}
+function showPanel(id, btn) {
+  activateTab(id);
+  if(btn){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');}
+}
+</script>
+</body>
+</html>
